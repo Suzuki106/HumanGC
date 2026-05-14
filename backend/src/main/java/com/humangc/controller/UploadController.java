@@ -1,0 +1,146 @@
+package com.humangc.controller;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.humangc.dto.UploadResponse;
+import com.humangc.entity.Paper;
+import com.humangc.entity.User;
+import com.humangc.mapper.PaperMapper;
+import com.humangc.mapper.UserMapper;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
+import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+@Slf4j
+@RestController
+@RequestMapping("/api")
+@CrossOrigin
+public class UploadController {
+
+    @Autowired
+    private PaperMapper paperMapper;
+
+    @Autowired
+    private UserMapper userMapper;
+
+    @PostMapping("/upload")
+    public UploadResponse upload(
+            @RequestParam("file") MultipartFile file,
+            @RequestHeader(value = "X-Anonymous-Id", required = false) String anonymousId) {
+
+        log.info("Upload request: filename={}, size={}, anonymousId={}",
+                file.getOriginalFilename(), file.getSize(), anonymousId);
+
+        if (file.isEmpty()) {
+            throw new RuntimeException("File is empty");
+        }
+
+        // Extract text based on file type
+        String text;
+        String originalFilename = file.getOriginalFilename();
+        String fileType;
+
+        try {
+            if (originalFilename == null) {
+                throw new RuntimeException("Filename is null");
+            }
+
+            String lowerFilename = originalFilename.toLowerCase();
+            if (lowerFilename.endsWith(".pdf")) {
+                text = extractPdfText(file);
+                fileType = "pdf";
+            } else if (lowerFilename.endsWith(".docx")) {
+                text = extractDocxText(file);
+                fileType = "docx";
+            } else if (lowerFilename.endsWith(".txt")) {
+                text = extractTxtText(file);
+                fileType = "txt";
+            } else {
+                throw new RuntimeException("Unsupported file type: " + originalFilename +
+                        ". Supported types: PDF, DOCX, TXT");
+            }
+        } catch (Exception e) {
+            log.error("Error extracting text from file", e);
+            throw new RuntimeException("Failed to extract text: " + e.getMessage());
+        }
+
+        if (text == null || text.isBlank()) {
+            throw new RuntimeException("No text content found in file");
+        }
+
+        // Find or create user
+        User user = findOrCreateUser(anonymousId);
+
+        // Save paper
+        Paper paper = new Paper();
+        paper.setUserId(user.getId());
+        paper.setOriginalText(text);
+        paper.setFileType(fileType);
+        paper.setOriginalFilename(originalFilename);
+        paper.setCreatedAt(LocalDateTime.now());
+        paperMapper.insert(paper);
+
+        log.info("Paper saved: id={}, userId={}, filename={}, textLength={}",
+                paper.getId(), user.getId(), originalFilename, text.length());
+
+        return new UploadResponse(paper.getId(), originalFilename);
+    }
+
+    private String extractPdfText(MultipartFile file) throws Exception {
+        try (InputStream is = file.getInputStream();
+             PDDocument document = Loader.loadPDF(is.readAllBytes())) {
+            PDFTextStripper stripper = new PDFTextStripper();
+            stripper.setSortByPosition(true);
+            return stripper.getText(document);
+        }
+    }
+
+    private String extractDocxText(MultipartFile file) throws Exception {
+        try (InputStream is = file.getInputStream();
+             XWPFDocument document = new XWPFDocument(is);
+             XWPFWordExtractor extractor = new XWPFWordExtractor(document)) {
+            return extractor.getText();
+        }
+    }
+
+    private String extractTxtText(MultipartFile file) throws Exception {
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8))) {
+            return reader.lines().collect(Collectors.joining("\n"));
+        }
+    }
+
+    private User findOrCreateUser(String anonymousId) {
+        if (anonymousId == null || anonymousId.isBlank()) {
+            anonymousId = "user_" + UUID.randomUUID().toString().substring(0, 8);
+        }
+
+        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(User::getAnonymousId, anonymousId);
+        User user = userMapper.selectOne(wrapper);
+
+        if (user == null) {
+            user = new User();
+            user.setAnonymousId(anonymousId);
+            user.setNickname("匿名用户");
+            user.setCreatedAt(LocalDateTime.now());
+            userMapper.insert(user);
+            log.info("Created new user: id={}, anonymousId={}", user.getId(), anonymousId);
+        }
+
+        return user;
+    }
+}

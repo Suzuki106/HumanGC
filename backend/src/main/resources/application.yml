@@ -1,0 +1,58 @@
+server:
+  port: 8080
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/humangc?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
+    username: humangc
+    password: humangc123
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: auto
+
+deepseek:
+  api-key: ${DEEPSEEK_API_KEY:sk-placeholder}
+  api-url: https://api.deepseek.com/v1/chat/completions
+
+humangc:
+  features:
+    - name: "错别字/typo"
+      weight: 0.6
+      description: "检测到拼写错误或typo"
+    - name: "半截句"
+      weight: 0.7
+      description: "句子不完整或中断"
+    - name: "官话堆砌"
+      weight: 0.8
+      description: "学术套话过多"
+    - name: "口语化"
+      weight: 0.5
+      description: "过于口语化表达"
+    - name: "长难句"
+      weight: 0.7
+      description: "嵌套句子过多"
+    - name: "逻辑跳跃"
+      weight: 0.6
+      description: "前后句缺少衔接"
+    - name: "排版混乱"
+      weight: 0.5
+      description: "段落长度异常/标点混用"
+    - name: "引用混乱"
+      weight: 0.5
+      description: "文献格式或引用缺失"
+    - name: "术语堆砌"
+      weight: 0.6
+      description: "无意义术语过多"
