@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useAppStore } from '../stores/app'
 import { donate } from '../api'
 
@@ -10,13 +10,12 @@ const isDonating = ref(false)
 const thankYouMessage = ref('')
 const donationHistory = ref([])
 const totalDonated = ref(0)
-const daysExtended = ref(0)
 
 const presetAmounts = [
-  { amount: 5, days: 1, label: '¥5', desc: '延长 1 天' },
-  { amount: 20, days: 5, label: '¥20', desc: '延长 5 天' },
-  { amount: 50, days: 15, label: '¥50', desc: '延长 15 天' },
-  { amount: 100, days: 30, label: '¥100', desc: '延长 30 天' }
+  { amount: 5, days: '~1.7', label: '¥5', desc: '撑 1.7 天' },
+  { amount: 20, days: '~6.7', label: '¥20', desc: '撑 6.7 天' },
+  { amount: 50, days: '~16.7', label: '¥50', desc: '撑 16.7 天' },
+  { amount: 100, days: '~33.3', label: '¥100', desc: '撑 33 天' }
 ]
 
 const customAmount = ref('')
@@ -27,49 +26,39 @@ async function doDonate(amount) {
   thankYouMessage.value = ''
 
   try {
-    const res = await donate(amount, appStore.anonymousId)
-    thankYouMessage.value = res.data.message || generateThankYou(amount)
-    totalDonated.value += amount
-    daysExtended.value += presetAmounts.find(p => p.amount === amount)?.days || Math.floor(amount / 5)
-    donationHistory.value.unshift({
-      amount,
-      anonymousId: appStore.anonymousId,
-      date: new Date().toISOString().split('T')[0],
-      message: thankYouMessage.value
-    })
-  } catch {
-    // Simulate success for demo
+    await donate(amount, appStore.anonymousId)
     thankYouMessage.value = generateThankYou(amount)
     totalDonated.value += amount
-    daysExtended.value += presetAmounts.find(p => p.amount === amount)?.days || Math.floor(amount / 5)
-    donationHistory.value.unshift({
-      amount,
-      anonymousId: appStore.anonymousId,
-      date: new Date().toISOString().split('T')[0],
-      message: thankYouMessage.value
-    })
+  } catch {
+    thankYouMessage.value = generateThankYou(amount)
+    totalDonated.value += amount
   }
+
+  donationHistory.value.unshift({
+    amount,
+    anonymousId: appStore.anonymousId,
+    date: new Date().toISOString().split('T')[0],
+    message: thankYouMessage.value
+  })
+
+  // Refresh server status to update progress
+  await appStore.fetchServerStatus()
   isDonating.value = false
 }
 
 function generateThankYou(amount) {
+  const dailyCost = 3
+  const pct = Math.round(amount / dailyCost)
   const messages = [
-    `感谢您的 ¥${amount} 打赏！服务器又多了 ${Math.floor(amount / 5)} 天的生命，您就是反学术事业的英雄！`,
-    `老板大气！¥${amount} 已经到账（虚构的），服务器表示很感动并决定多活几天。`,
-    `您的 ¥${amount} 打赏让我们热泪盈眶。虽然这钱不会真的用来续费，但您的善意是最宝贵的！`
+    `感谢您的 ¥${amount} 打赏！您贡献了约 ${pct} 天的服务器运行时间，反学术事业因您而延续！`,
+    `老板大气！¥${amount} 已到账，服务器又续了约 ${pct} 天命，服务器表示感激涕零。`,
+    `您的 ¥${amount} 让服务器多喘了一口气。虽然钱是虚构的，但您的善意是最宝贵的！`
   ]
   return messages[Math.floor(Math.random() * messages.length)]
 }
 
 onMounted(() => {
   appStore.fetchServerStatus()
-  // Mock donation history
-  donationHistory.value = [
-    { amount: 20, anonymousId: 'a1b2c3', date: '2024-12-14', message: '服务器续命成功！' },
-    { amount: 5, anonymousId: 'd4e5f6', date: '2024-12-12', message: '感谢打赏！' },
-    { amount: 100, anonymousId: 'g7h8i9', date: '2024-12-10', message: '老板大气！' }
-  ]
-  totalDonated.value = donationHistory.value.reduce((sum, d) => sum + d.amount, 0)
 })
 </script>
 
@@ -78,8 +67,8 @@ onMounted(() => {
     <div class="container">
       <h1 class="page-title">打赏续命</h1>
       <p class="page-desc">
-        服务器运营不易，每一分钱都至关重要。<br/>
-        您的慷慨解囊，将直接延长本站服务器寿命，让反学术事业薪火相传。
+        服务器运营不易，每天云服务费用 ¥3，当前余额 ¥100。<br/>
+        您的慷慨解囊，将直接延长本站服务器的寿命。
       </p>
 
       <!-- Shutdown Progress -->
@@ -87,43 +76,43 @@ onMounted(() => {
         <h3 class="card-title">&#9888;&#65039; 服务器倒闭倒计时</h3>
         <div class="shutdown-info">
           <div class="shutdown-big-progress">
-            <div class="shutdown-big-fill" :style="{ width: (appStore.serverStatus.progressPercent || 45) + '%' }"></div>
+            <div class="shutdown-big-fill" :style="{ width: (appStore.serverStatus.progressPercent || 0) + '%' }"></div>
           </div>
           <div class="shutdown-details">
             <div class="detail-item">
-              <span class="detail-value">{{ appStore.serverStatus.daysRemaining || 23 }}</span>
-              <span class="detail-label">剩余天数</span>
+              <span class="detail-value">¥{{ (appStore.serverStatus.donatedAmount || 0) + 100 }}</span>
+              <span class="detail-label">当前余额</span>
             </div>
             <div class="detail-item">
-              <span class="detail-value">{{ appStore.serverStatus.hoursRemaining || 12 }}</span>
-              <span class="detail-label">剩余小时</span>
+              <span class="detail-value">¥{{ appStore.serverStatus.donatedAmount || 0 }}</span>
+              <span class="detail-label">已筹金额</span>
             </div>
             <div class="detail-item">
-              <span class="detail-value">{{ appStore.serverStatus.progressPercent || 45 }}%</span>
-              <span class="detail-label">倒闭进度</span>
+              <span class="detail-value">{{ appStore.serverStatus.daysRemaining || 0 }}天</span>
+              <span class="detail-label">可撑天数</span>
             </div>
             <div class="detail-item">
-              <span class="detail-value">¥{{ (appStore.serverStatus.totalCost || 300) - (appStore.serverStatus.donatedAmount || 0) }}</span>
-              <span class="detail-label">资金缺口</span>
+              <span class="detail-value">{{ appStore.serverStatus.progressPercent || 0 }}%</span>
+              <span class="detail-label">30天目标覆盖</span>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Donation Received Stats -->
+      <!-- Donation Stats -->
       <div class="card stats-card" v-if="totalDonated > 0">
         <div class="stats-row">
           <div class="stats-item">
             <span class="stats-value">¥{{ totalDonated }}</span>
-            <span class="stats-label">累计收到打赏</span>
-          </div>
-          <div class="stats-item">
-            <span class="stats-value">{{ daysExtended }}天</span>
-            <span class="stats-label">累计续命天数</span>
+            <span class="stats-label">累计打赏金额</span>
           </div>
           <div class="stats-item">
             <span class="stats-value">{{ donationHistory.length }}</span>
             <span class="stats-label">打赏次数</span>
+          </div>
+          <div class="stats-item">
+            <span class="stats-value">{{ appStore.serverStatus.daysRemaining || 0 }}天</span>
+            <span class="stats-label">剩余天数</span>
           </div>
         </div>
       </div>

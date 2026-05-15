@@ -39,8 +39,8 @@ onUnmounted(() => {
     <div class="shutdown-inner">
       <span class="shutdown-icon">&#9888;&#65039;</span>
       <span class="shutdown-text">
-        服务器租赁剩余时间：<strong>{{ daysRemaining }}</strong>天<strong>{{ hoursRemaining }}</strong>小时
-        &nbsp;&middot;&nbsp; 倒闭进度 <strong>{{ progressPercent }}%</strong>
+        日费 <strong>¥3</strong>，余额 <strong>¥{{ (appStore.serverStatus.donatedAmount || 0) + 100 }}</strong>
+        &nbsp;&middot;&nbsp; 可撑 <strong>{{ daysRemaining }}</strong>天<strong>{{ hoursRemaining }}</strong>小时
       </span>
       <div class="shutdown-progress">
         <div class="shutdown-progress-fill" :style="{ width: progressPercent + '%' }"></div>

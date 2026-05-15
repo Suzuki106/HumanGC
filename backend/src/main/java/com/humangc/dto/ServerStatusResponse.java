@@ -10,6 +10,10 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ServerStatusResponse {
+    private boolean running;
     private Long daysRemaining;
+    private Long hoursRemaining;
     private BigDecimal progressPercent;
+    private BigDecimal totalCost;
+    private BigDecimal donatedAmount;
 }
