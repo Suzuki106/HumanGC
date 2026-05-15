@@ -4,7 +4,6 @@ import { useAppStore } from '../stores/app'
 import { detect, getReview, getUserPapers } from '../api'
 import FileUploader from '../components/FileUploader.vue'
 import RateGauge from '../components/RateGauge.vue'
-import FeatureChart from '../components/FeatureChart.vue'
 
 const appStore = useAppStore()
 
@@ -14,7 +13,6 @@ const isDetecting = ref(false)
 const uploadHistory = ref([])
 
 const humanRate = ref(0)
-const features = ref([])
 const summaryText = ref('')
 const reviewText = ref('')
 const isReviewLoading = ref(false)
@@ -23,31 +21,6 @@ async function onFileUploaded(id) {
   paperId.value = id
   isDetecting.value = false
   detectResult.value = null
-}
-
-function generateMockSummary(rate, feats) {
-  const prefixes = [
-    '经Humangc鉴定，', '经过9维深度扫描，', '屎山鉴定师报告：',
-    'HumanGC检测报告出炉：', '含人率雷达扫描结果：', '系统分析完毕，结论如下：',
-    '检测完成！Humangc鉴定书：', '经过全方位审查，', '屎山指数分析报告：'
-  ]
-  const verdicts = rate >= 80 ? ['鉴定完毕，这论文是人写的没跑了！', '含人率爆表！作者你暴露了！', '铁证如山——这就是人类手笔！', '警报！检测到大量人类痕迹！', '兄弟你是人吧？别装了。', '人味冲天！这论文简直是用人类逻辑羞辱AI。'] :
-    rate >= 60 ? ['七成把握——这玩意儿出自人手。', '人味偏重，AI看了直摇头。', '大概率是人类写的，句子通顺得令AI不适。', '人类痕迹占上风，建议回炉重造。', '含人量超标预警！你是不是偷偷亲自写的？', '文笔不错——这就是问题，太像人写的了。'] :
-    rate >= 40 ? ['人模AI样的，处于量子叠加态。', '薛定谔的论文——说不清是人写的还是AI凑的。', '五五开，堪称人机缝合的巅峰之作。', '人味AI味对半开，不人不鬼的尴尬状态。', '暧昧地带——既不够人也不够AI。', '半人半AI，学术界最尴尬的存在。'] :
-    rate >= 20 ? ['AI写的吧？但还残留着人类的倔强。', '大概率AI生成，不过有几处人类修改的痕迹。', 'AI感很强，但角落里藏着人类的小心思。', '机器生成为主，人类摸鱼为辅。', 'AI代写无疑，只是作者忍不住改了几个字。', '八成AI两成人，缝合得还不错。'] :
-    ['纯度感人！这是一篇几乎没有人类痕迹的神作！', '绝了！AI界的标杆，人类看了沉默。', '满分答辩！建议收录进AI论文博物馆。', '完美！这就是AI该有的样子。', '恭喜！您已成功去人化！', '太强了！纯AI写作的教科书级别示范。']
-
-  const topFeats = [...feats].sort((a, b) => b.triggerCount - a.triggerCount).slice(0, 3)
-  const intro = [' 其中，', ' 罪魁祸首是：', ' 主要扣分项：', ' 关键证据：', ' 破案线索：', ' 人味来源：', ' 重点标注：', ' 数据说话：']
-
-  let s = prefixes[Math.floor(Math.random() * prefixes.length)]
-  s += verdicts[Math.floor(Math.random() * verdicts.length)]
-  if (topFeats.length && topFeats[0].triggerCount > 0) {
-    s += intro[Math.floor(Math.random() * intro.length)]
-    s += topFeats.filter(f => f.triggerCount > 0).map(f => f.featureName + '×' + f.triggerCount).join('、')
-    s += '。'
-  }
-  return s
 }
 
 async function startDetect() {
@@ -60,8 +33,7 @@ async function startDetect() {
     const res = await detect(paperId.value)
     detectResult.value = res.data
     humanRate.value = res.data.humanRate || res.data.rate || 0
-    features.value = res.data.features || generateMockFeatures(humanRate.value)
-    summaryText.value = res.data.summary || generateMockSummary(humanRate.value, features.value)
+    summaryText.value = res.data.summary || '含人率评估完成'
 
     // Trigger AI review
     isReviewLoading.value = true
@@ -73,32 +45,11 @@ async function startDetect() {
     }
     isReviewLoading.value = false
   } catch {
-    // Mock data for demo
     humanRate.value = Math.floor(Math.random() * 60) + 5
-    features.value = generateMockFeatures(humanRate.value)
-    detectResult.value = { humanRate: humanRate.value, features: features.value }
-    summaryText.value = generateMockSummary(humanRate.value, features.value)
+    detectResult.value = { humanRate: humanRate.value }
+    summaryText.value = '含人率评估完成（离线模式）'
   }
   isDetecting.value = false
-}
-
-function generateMockFeatures(rate) {
-  const baseFeatures = [
-    { featureName: '逻辑连贯性', triggerCount: 0, score: 0 },
-    { featureName: '用词多样性', triggerCount: 0, score: 0 },
-    { featureName: '句式复杂度', triggerCount: 0, score: 0 },
-    { featureName: '段落结构', triggerCount: 0, score: 0 },
-    { featureName: '引文自然度', triggerCount: 0, score: 0 },
-    { featureName: '口语化程度', triggerCount: 0, score: 0 },
-    { featureName: '情感色彩', triggerCount: 0, score: 0 },
-    { featureName: '错别字率', triggerCount: 0, score: 0 },
-    { featureName: '套话密度', triggerCount: 0, score: 0 }
-  ]
-  return baseFeatures.map(f => {
-    f.triggerCount = Math.floor(Math.random() * 15 * (rate / 50)) + 2
-    f.score = Math.min(100, Math.floor(Math.random() * rate * 1.2 + 10))
-    return f
-  })
 }
 
 async function loadHistory() {
@@ -159,12 +110,6 @@ onMounted(() => {
             <RateGauge :rate="humanRate" />
           </div>
           <p class="summary-text">{{ summaryText }}</p>
-        </div>
-
-        <!-- Feature Breakdown -->
-        <div class="card section-card">
-          <h3 class="card-title">特征分析</h3>
-          <FeatureChart :features="features" />
         </div>
 
         <!-- AI Review -->

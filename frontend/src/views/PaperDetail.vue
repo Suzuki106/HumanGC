@@ -3,7 +3,6 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getPaper } from '../api'
 import RateGauge from '../components/RateGauge.vue'
-import FeatureChart from '../components/FeatureChart.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -101,12 +100,6 @@ onMounted(async () => {
           <div class="rate-display">
             <RateGauge :rate="paper.humanRate" />
           </div>
-        </div>
-
-        <!-- Feature Breakdown -->
-        <div class="card section-card" v-if="paper.features && paper.features.length">
-          <h3 class="card-title">特征分析</h3>
-          <FeatureChart :features="paper.features" />
         </div>
 
         <!-- AI Review -->

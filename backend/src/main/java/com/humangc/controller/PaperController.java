@@ -2,9 +2,7 @@ package com.humangc.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.humangc.entity.Paper;
-import com.humangc.entity.PaperFeature;
 import com.humangc.entity.User;
-import com.humangc.mapper.PaperFeatureMapper;
 import com.humangc.mapper.PaperMapper;
 import com.humangc.mapper.UserMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -25,9 +23,6 @@ public class PaperController {
     private PaperMapper paperMapper;
 
     @Autowired
-    private PaperFeatureMapper paperFeatureMapper;
-
-    @Autowired
     private UserMapper userMapper;
 
     @GetMapping("/paper/{id}")
@@ -39,17 +34,10 @@ public class PaperController {
             throw new RuntimeException("Paper not found: " + id);
         }
 
-        // Get features
-        LambdaQueryWrapper<PaperFeature> featureWrapper = new LambdaQueryWrapper<>();
-        featureWrapper.eq(PaperFeature::getPaperId, id);
-        List<PaperFeature> features = paperFeatureMapper.selectList(featureWrapper);
-
-        // Get user info
         User user = userMapper.selectById(paper.getUserId());
 
         Map<String, Object> result = new HashMap<>();
         result.put("paper", paper);
-        result.put("features", features);
         result.put("user", user);
 
         return result;
