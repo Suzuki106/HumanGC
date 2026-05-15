@@ -193,10 +193,9 @@ onMounted(() => {
           <div class="footer-col">
             <h4>联系我们</h4>
             <ul>
-              <li>邮箱：humangc@proton.me</li>
+              <li>邮箱：HumanGC@proton.me</li>
               <li>GitHub：<a href="https://github.com/Suzuki106/HumanGC" target="_blank" style="color: rgba(255,255,255,0.6);">Suzuki106/HumanGC</a></li>
-              <li>微信公众号：HumanGC</li>
-              <li>反馈建议：issues 提交</li>
+              <li>反馈建议：HumanGC@proton.me</li>
             </ul>
           </div>
           <div class="footer-col">
