@@ -41,43 +41,34 @@ public class LeaderboardService {
     public LeaderboardResponse getLeaderboard(String type, Integer page, Integer size) {
         log.info("Getting leaderboard for type={}, page={}, size={}", type, page, size);
 
-        // Recalculate first
-        recalculate(type);
+        // Aggregate and sort
+        List<LeaderboardEntry> aggregated = aggregate(type);
 
-        // Query from leaderboard table
-        LambdaQueryWrapper<Leaderboard> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Leaderboard::getType, type)
-               .orderByAsc(Leaderboard::getRankNum);
+        // Assign ranks
+        int rank = 1;
+        for (LeaderboardEntry entry : aggregated) {
+            entry.setRank(rank++);
+        }
 
-        Page<Leaderboard> leaderboardPage = new Page<>(page, size);
-        leaderboardPage = leaderboardMapper.selectPage(leaderboardPage, wrapper);
+        // Persist to leaderboard table for reference
+        saveToLeaderboard(type, aggregated);
 
-        List<LeaderboardEntry> entries = leaderboardPage.getRecords().stream()
-                .map(lb -> new LeaderboardEntry(
-                        lb.getRankNum(),
-                        lb.getEntityName(),
-                        lb.getAvgHumanRate(),
-                        lb.getPaperCount()))
-                .collect(Collectors.toList());
+        // Paginate in memory
+        int total = aggregated.size();
+        int fromIndex = (page - 1) * size;
+        int toIndex = Math.min(fromIndex + size, total);
+        List<LeaderboardEntry> paged = fromIndex < total
+                ? aggregated.subList(fromIndex, toIndex)
+                : new ArrayList<>();
 
-        return new LeaderboardResponse(type, entries, (int) leaderboardPage.getTotal(), page, size);
+        return new LeaderboardResponse(type, paged, total, page, size);
     }
 
     /**
-     * Recalculate leaderboard rankings for a given type.
+     * Aggregate and sort leaderboard data for a given type.
      */
-    @Transactional
-    public void recalculate(String type) {
-        log.info("Recalculating leaderboard for type={}", type);
-
-        // Clear old entries for this type
-        LambdaQueryWrapper<Leaderboard> deleteWrapper = new LambdaQueryWrapper<>();
-        deleteWrapper.eq(Leaderboard::getType, type);
-        leaderboardMapper.delete(deleteWrapper);
-
-        // Aggregate data
-        List<LeaderboardEntry> aggregated = new ArrayList<>();
-
+    private List<LeaderboardEntry> aggregate(String type) {
+        List<LeaderboardEntry> aggregated;
         switch (type) {
             case "person":
                 aggregated = aggregateByPerson();
@@ -91,24 +82,30 @@ public class LeaderboardService {
             default:
                 throw new RuntimeException("Unknown leaderboard type: " + type);
         }
-
-        // Sort by avg human rate ascending (lower human rate = higher rank)
         aggregated.sort((a, b) -> a.getAvgHumanRate().compareTo(b.getAvgHumanRate()));
+        return aggregated;
+    }
 
-        // Save to leaderboard table
-        int rank = 1;
-        for (LeaderboardEntry entry : aggregated) {
+    /**
+     * Persist to leaderboard table for reference.
+     */
+    @Transactional
+    private void saveToLeaderboard(String type, List<LeaderboardEntry> entries) {
+        LambdaQueryWrapper<Leaderboard> deleteWrapper = new LambdaQueryWrapper<>();
+        deleteWrapper.eq(Leaderboard::getType, type);
+        leaderboardMapper.delete(deleteWrapper);
+
+        for (LeaderboardEntry entry : entries) {
             Leaderboard lb = new Leaderboard();
             lb.setType(type);
-            lb.setRankNum(rank++);
+            lb.setRankNum(entry.getRank());
             lb.setEntityName(entry.getName());
             lb.setAvgHumanRate(entry.getAvgHumanRate());
             lb.setPaperCount(entry.getPaperCount());
             lb.setUpdatedAt(LocalDateTime.now());
             leaderboardMapper.insert(lb);
         }
-
-        log.info("Leaderboard recalculated for type={}, {} entries", type, aggregated.size());
+        log.info("Leaderboard saved for type={}, {} entries", type, entries.size());
     }
 
     /**
@@ -119,7 +116,6 @@ public class LeaderboardService {
         wrapper.isNotNull(Paper::getHumanRate);
         List<Paper> papers = paperMapper.selectList(wrapper);
 
-        // Group by userId
         Map<Long, List<Paper>> grouped = papers.stream()
                 .collect(Collectors.groupingBy(Paper::getUserId));
 
@@ -134,14 +130,23 @@ public class LeaderboardService {
                     .average()
                     .orElse(0);
 
+            // Find the most recent paper for this user
+            Paper latestPaper = userPapers.stream()
+                    .max((a, b) -> a.getCreatedAt().compareTo(b.getCreatedAt()))
+                    .orElse(null);
+
             User user = userMapper.selectById(userId);
             String name = user != null && user.getAnonymousId() != null
                     ? user.getAnonymousId()
                     : "匿名用户" + userId;
 
-            entries.add(new LeaderboardEntry(0, name,
+            LeaderboardEntry le = new LeaderboardEntry(0, name,
                     BigDecimal.valueOf(avgRate).setScale(1, RoundingMode.HALF_UP),
-                    userPapers.size()));
+                    userPapers.size());
+            if (latestPaper != null) {
+                le.setPaperId(latestPaper.getId());
+            }
+            entries.add(le);
         }
 
         return entries;
@@ -184,9 +189,17 @@ public class LeaderboardService {
                     .average()
                     .orElse(0);
 
-            entries.add(new LeaderboardEntry(0, entry.getKey(),
+            Paper latestPaper = regionPapers.stream()
+                    .max((a, b) -> a.getCreatedAt().compareTo(b.getCreatedAt()))
+                    .orElse(null);
+
+            LeaderboardEntry le = new LeaderboardEntry(0, entry.getKey(),
                     BigDecimal.valueOf(avgRate).setScale(1, RoundingMode.HALF_UP),
-                    regionPapers.size()));
+                    regionPapers.size());
+            if (latestPaper != null) {
+                le.setPaperId(latestPaper.getId());
+            }
+            entries.add(le);
         }
 
         return entries;
@@ -229,9 +242,17 @@ public class LeaderboardService {
                     .average()
                     .orElse(0);
 
-            entries.add(new LeaderboardEntry(0, entry.getKey(),
+            Paper latestPaper = schoolPapers.stream()
+                    .max((a, b) -> a.getCreatedAt().compareTo(b.getCreatedAt()))
+                    .orElse(null);
+
+            LeaderboardEntry le = new LeaderboardEntry(0, entry.getKey(),
                     BigDecimal.valueOf(avgRate).setScale(1, RoundingMode.HALF_UP),
-                    schoolPapers.size()));
+                    schoolPapers.size());
+            if (latestPaper != null) {
+                le.setPaperId(latestPaper.getId());
+            }
+            entries.add(le);
         }
 
         return entries;

@@ -160,10 +160,13 @@ onMounted(() => {
             :key="idx"
             class="history-item"
           >
-            <span class="history-name">{{ item.filename || item.title || '未知文件' }}</span>
+            <span class="history-name">{{ item.originalFilename || item.filename || item.title || '未知文件' }}</span>
             <span class="history-date">{{ item.uploadDate || item.createdAt || '-' }}</span>
-            <span class="history-rate" v-if="item.humanRate !== undefined">
+            <span class="history-rate" v-if="item.humanRate != null">
               含人率：{{ item.humanRate }}%
+            </span>
+            <span class="history-rate not-detected" v-else>
+              未检测
             </span>
             <router-link
               v-if="item.id"
@@ -342,6 +345,11 @@ onMounted(() => {
 .history-rate {
   color: var(--primary-blue);
   font-weight: 700;
+}
+
+.history-rate.not-detected {
+  color: #999;
+  font-weight: 400;
 }
 
 .history-link {

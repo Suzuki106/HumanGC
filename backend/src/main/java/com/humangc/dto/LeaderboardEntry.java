@@ -14,4 +14,12 @@ public class LeaderboardEntry {
     private String name;
     private BigDecimal avgHumanRate;
     private Integer paperCount;
+    private Long paperId;
+
+    public LeaderboardEntry(Integer rank, String name, BigDecimal avgHumanRate, Integer paperCount) {
+        this.rank = rank;
+        this.name = name;
+        this.avgHumanRate = avgHumanRate;
+        this.paperCount = paperCount;
+    }
 }

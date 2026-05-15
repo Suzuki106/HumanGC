@@ -1,6 +1,9 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { getLeaderboard } from '../api'
+
+const router = useRouter()
 
 const activeTab = ref('person')
 const page = ref(1)
@@ -51,7 +54,9 @@ watch(page, () => {
 })
 
 function onRowClick(item) {
-  // Leaderboard entries don't have paper id; no navigation needed
+  if (item.paperId) {
+    router.push('/paper/' + item.paperId)
+  }
 }
 
 onMounted(() => {
@@ -118,6 +123,8 @@ onMounted(() => {
             <tr
               v-for="item in records"
               :key="item.rank"
+              :class="{ 'clickable-row': item.paperId }"
+              @click="onRowClick(item)"
             >
               <td>
                 <span class="rank-badge" :class="'rank-' + item.rank">
@@ -259,6 +266,14 @@ onMounted(() => {
 
 .academic-table {
   width: 100%;
+}
+
+.clickable-row {
+  cursor: pointer;
+}
+
+.clickable-row:hover {
+  background: rgba(26, 86, 184, 0.04);
 }
 
 .td-name {

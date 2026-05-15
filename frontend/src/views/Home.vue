@@ -154,6 +154,8 @@ onMounted(() => {
               v-for="paper in topPapers"
               :key="paper.rank"
               style="cursor: pointer;"
+              @click="paper.paperId && router.push('/paper/' + paper.paperId)"
+              :title="paper.paperId ? '查看论文详情' : ''"
             >
               <td>
                 <span class="rank-badge" :class="'rank-' + paper.rank">
