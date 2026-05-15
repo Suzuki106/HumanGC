@@ -9,7 +9,6 @@ const appStore = useAppStore()
 const progressPercent = ref(0)
 const daysRemaining = ref(0)
 const hoursRemaining = ref(0)
-const hasExpired = ref(false)
 
 let refreshTimer = null
 
@@ -18,7 +17,6 @@ function updateDisplay() {
   progressPercent.value = status.progressPercent || 0
   daysRemaining.value = status.daysRemaining || 0
   hoursRemaining.value = status.hoursRemaining || 0
-  hasExpired.value = progressPercent.value >= 100
 }
 
 onMounted(() => {
@@ -35,7 +33,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="shutdown-bar" v-if="!hasExpired">
+  <div class="shutdown-bar" >
     <div class="shutdown-inner">
       <span class="shutdown-icon">&#9888;&#65039;</span>
       <span class="shutdown-text">
