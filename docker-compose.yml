@@ -30,7 +30,7 @@ services:
       mysql:
         condition: service_healthy
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/humangc?useUnicode=true&characterEncoding=utf8mb4&serverTimezone=Asia/Shanghai
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/humangc?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
       SPRING_DATASOURCE_USERNAME: humangc
       SPRING_DATASOURCE_PASSWORD: humangc123
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
