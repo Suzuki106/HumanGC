@@ -4,6 +4,8 @@
 -- ------------------------------------------------------
 -- Server version	8.0.45-0ubuntu0.24.04.1
 
+ALTER DATABASE humangc CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
