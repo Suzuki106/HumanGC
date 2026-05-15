@@ -147,7 +147,13 @@ function clearFile() {
 
         <div class="user-meta" v-if="showUserMeta && !isUploading && uploadProgress !== 100">
           <div class="meta-field">
-            <label class="meta-label">地区</label>
+            <label class="meta-label">
+              地区
+              <span class="meta-tip" title="地区为用户级别，修改后将同步更新您所有已上传论文的地区">
+                &#9432;
+                <span class="meta-tooltip">地区为用户级别，修改后将同步更新您所有已上传论文的地区</span>
+              </span>
+            </label>
             <input
               v-model="region"
               type="text"
@@ -157,7 +163,13 @@ function clearFile() {
             />
           </div>
           <div class="meta-field">
-            <label class="meta-label">学校</label>
+            <label class="meta-label">
+              学校
+              <span class="meta-tip" title="学校为用户级别，修改后将同步更新您所有已上传论文的学校">
+                &#9432;
+                <span class="meta-tooltip">学校为用户级别，修改后将同步更新您所有已上传论文的学校</span>
+              </span>
+            </label>
             <input
               v-model="school"
               type="text"
@@ -290,6 +302,58 @@ function clearFile() {
 
 .meta-input::placeholder {
   color: #bbb;
+}
+
+.meta-tip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #e0e0e0;
+  color: #888;
+  font-size: 11px;
+  cursor: help;
+  margin-left: 4px;
+  font-style: normal;
+  vertical-align: middle;
+}
+
+.meta-tip:hover {
+  background: var(--primary-blue);
+  color: #fff;
+}
+
+.meta-tooltip {
+  display: none;
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #333;
+  color: #fff;
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 4px;
+  white-space: nowrap;
+  z-index: 100;
+  font-weight: 400;
+}
+
+.meta-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: #333;
+}
+
+.meta-tip:hover .meta-tooltip {
+  display: block;
 }
 
 .file-info {
