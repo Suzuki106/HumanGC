@@ -100,26 +100,62 @@ public class UploadController {
     }
 
     private String extractPdfText(MultipartFile file) throws Exception {
-        try (InputStream is = file.getInputStream();
-             PDDocument document = Loader.loadPDF(is.readAllBytes())) {
+        byte[] bytes = file.getInputStream().readAllBytes();
+        try (PDDocument document = Loader.loadPDF(bytes)) {
             PDFTextStripper stripper = new PDFTextStripper();
             stripper.setSortByPosition(true);
-            return stripper.getText(document);
+            stripper.setAddMoreFormatting(false);
+            stripper.setSuppressDuplicateOverlappingText(true);
+            String text = stripper.getText(document);
+            if (text == null || text.trim().isEmpty()) {
+                throw new RuntimeException("PDF文件中未检测到可提取的文本（可能是扫描版PDF或图片型PDF）");
+            }
+            log.info("PDF text extracted: {} chars", text.length());
+            return text;
         }
     }
 
     private String extractDocxText(MultipartFile file) throws Exception {
         try (InputStream is = file.getInputStream();
-             XWPFDocument document = new XWPFDocument(is);
-             XWPFWordExtractor extractor = new XWPFWordExtractor(document)) {
-            return extractor.getText();
+             XWPFDocument document = new XWPFDocument(is)) {
+            StringBuilder sb = new StringBuilder();
+            // Extract paragraphs
+            document.getParagraphs().forEach(p -> {
+                String t = p.getText();
+                if (t != null && !t.isBlank()) {
+                    sb.append(t).append("\n");
+                }
+            });
+            // Also extract tables
+            document.getTables().forEach(table -> {
+                table.getRows().forEach(row -> {
+                    row.getTableCells().forEach(cell -> {
+                        String t = cell.getText();
+                        if (t != null && !t.isBlank()) {
+                            sb.append(t).append(" ");
+                        }
+                    });
+                    sb.append("\n");
+                });
+            });
+            String text = sb.toString();
+            if (text.isBlank()) {
+                throw new RuntimeException("DOCX文件中未检测到文本内容");
+            }
+            log.info("DOCX text extracted: {} chars", text.length());
+            return text;
         }
     }
 
     private String extractTxtText(MultipartFile file) throws Exception {
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8))) {
-            return reader.lines().collect(Collectors.joining("\n"));
+            String text = reader.lines().collect(Collectors.joining("\n"));
+            if (text.isBlank()) {
+                // Try UTF-8 without BOM, then GBK
+                throw new RuntimeException("TXT文件为空或编码不支持");
+            }
+            return text;
         }
     }
 

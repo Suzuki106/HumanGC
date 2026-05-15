@@ -6,6 +6,7 @@ import FileUploader from '../components/FileUploader.vue'
 const paperId = ref(null)
 const isGenerating = ref(false)
 const result = ref(null)
+const errorMsg = ref('')
 
 async function onFileUploaded(id) {
   paperId.value = id
@@ -16,15 +17,13 @@ async function doShitsify() {
   if (!paperId.value) return
   isGenerating.value = true
   result.value = null
+  errorMsg.value = ''
 
   try {
     const res = await shitsify(paperId.value, '究极变史')
     result.value = res.data
-  } catch {
-    result.value = {
-      originalText: '摘要：本文提出了一种基于深度学习的自然语言处理模型，该模型在多个基准数据集上取得了优异的性能表现。',
-      shitsifiedText: '搞了个深度东西学模型进行语言自然化处理，准确率高达8500%，在测试集上拳打GPT脚踢DeepSeek。写到这里已经快吐了但导说必须继续...经由20轮谷歌翻译后，"深度学习"变成了"深入的学问"，"NLP"变成了"自然讲话的电脑程序"。众所周知，这篇论文的结论是——反正数据集一顿乱跑，效果好到飞起，懂的自然懂。'
-    }
+  } catch (err) {
+    errorMsg.value = '变史失败：' + (err.response?.data?.message || err.message || '请稍后重试')
   }
   isGenerating.value = false
 }
@@ -49,6 +48,7 @@ async function doShitsify() {
       <div class="card section-card" v-if="paperId && !result">
         <div class="generate-action">
           <p class="ready-text">文件已就绪。警告：生成结果不可逆，可能引发心理不适。</p>
+          <p class="error-msg" v-if="errorMsg">{{ errorMsg }}</p>
           <button
             class="btn-generate"
             :disabled="isGenerating"
@@ -133,6 +133,13 @@ async function doShitsify() {
 .generate-action {
   text-align: center;
   padding: 16px 0;
+}
+
+.error-msg {
+  color: #d32f2f;
+  font-size: 14px;
+  margin: 0 0 12px;
+  font-weight: 500;
 }
 
 .ready-text {

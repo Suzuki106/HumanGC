@@ -68,9 +68,9 @@ async function startUpload() {
   uploadProgress.value = 0
   errorMessage.value = ''
 
+  let progressInterval
   try {
-    // Simulate progress since axios uploadProgress can be spotty
-    const progressInterval = setInterval(() => {
+    progressInterval = setInterval(() => {
       if (uploadProgress.value < 90) {
         uploadProgress.value += Math.random() * 15
       }
@@ -79,12 +79,19 @@ async function startUpload() {
     const res = await upload(selectedFile.value)
     clearInterval(progressInterval)
     uploadProgress.value = 100
-    emit('file-uploaded', res.data.id || res.data.paperId)
-    isUploading.value = false
+    const paperId = res.data?.paperId || res.data?.id
+    if (!paperId) {
+      errorMessage.value = '上传失败：服务器返回异常'
+      isUploading.value = false
+      return
+    }
+    emit('file-uploaded', paperId)
   } catch (err) {
-    errorMessage.value = '上传失败：' + (err.response?.data?.message || err.message)
-    isUploading.value = false
+    if (progressInterval) clearInterval(progressInterval)
+    errorMessage.value = '上传失败：' + (err.response?.data?.message || err.message || 'Network Error')
     uploadProgress.value = 0
+  } finally {
+    isUploading.value = false
   }
 }
 

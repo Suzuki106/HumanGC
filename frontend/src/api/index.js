@@ -1,28 +1,28 @@
 import axios from 'axios'
 
 const apiClient = axios.create({
-  baseURL: 'http://localhost:8080/api',
-  timeout: 30000,
-  headers: {
-    'Content-Type': 'application/json'
-  }
+  baseURL: '/api',
+  timeout: 30000
 })
 
 export function upload(file) {
   const formData = new FormData()
   formData.append('file', file)
   return apiClient.post('/upload', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-    timeout: 60000
+    timeout: 120000
   })
 }
 
 export function detect(paperId) {
-  return apiClient.post(`/detect/${paperId}`)
+  return apiClient.post(`/detect/${paperId}`, null, {
+    timeout: 60000
+  })
 }
 
 export function shitsify(paperId, style) {
-  return apiClient.post(`/shitsify/${paperId}`, { style })
+  return apiClient.post(`/shitsify/${paperId}`, { style }, {
+    timeout: 120000
+  })
 }
 
 export function getReview(paperId) {
