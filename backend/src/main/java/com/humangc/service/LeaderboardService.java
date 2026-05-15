@@ -92,8 +92,8 @@ public class LeaderboardService {
                 throw new RuntimeException("Unknown leaderboard type: " + type);
         }
 
-        // Sort by avg human rate descending (higher human rate = higher rank)
-        aggregated.sort((a, b) -> b.getAvgHumanRate().compareTo(a.getAvgHumanRate()));
+        // Sort by avg human rate ascending (lower human rate = higher rank)
+        aggregated.sort((a, b) -> a.getAvgHumanRate().compareTo(b.getAvgHumanRate()));
 
         // Save to leaderboard table
         int rank = 1;

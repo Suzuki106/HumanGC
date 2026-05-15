@@ -50,17 +50,10 @@ const features = [
 
 async function loadLeaderboard() {
   try {
-    const res = await getLeaderboard('individual', 1, 5)
-    topPapers.value = (res.data.records || res.data.items || []).slice(0, 5)
+    const res = await getLeaderboard('person', 1, 5)
+    topPapers.value = (res.data.entries || []).slice(0, 5)
   } catch {
-    // Use sample data on fail
-    topPapers.value = [
-      { rank: 1, title: '基于Transformer的语义理解模型优化', humanRate: 2.3, university: '清华大学', style: '本科生DDL版' },
-      { rank: 2, title: '大规模分布式系统中的容错机制研究', humanRate: 3.1, university: '北京大学', style: '导师看了头疼版' },
-      { rank: 3, title: '神经网络在自然语言处理中的应用', humanRate: 4.7, university: '浙江大学', style: '知网缝合怪版' },
-      { rank: 4, title: '基于深度强化学习的游戏AI设计', humanRate: 5.2, university: '上海交通大学', style: '真实人类版' },
-      { rank: 5, title: '云计算环境下数据安全保护方案', humanRate: 6.0, university: '华中科技大学', style: '本科生DDL版' }
-    ]
+    topPapers.value = []
   }
 }
 
@@ -137,17 +130,15 @@ onMounted(() => {
           <thead>
             <tr>
               <th>排名</th>
-              <th>论文标题</th>
+              <th>名称</th>
               <th>含人率</th>
-              <th>所在高校</th>
-              <th>风格</th>
+              <th>论文数量</th>
             </tr>
           </thead>
           <tbody>
             <tr
               v-for="paper in topPapers"
               :key="paper.rank"
-              @click="router.push('/paper/' + (paper.id || paper.rank))"
               style="cursor: pointer;"
             >
               <td>
@@ -155,14 +146,13 @@ onMounted(() => {
                   {{ paper.rank }}
                 </span>
               </td>
-              <td class="td-title">{{ paper.title }}</td>
+              <td class="td-title">{{ paper.name }}</td>
               <td>
-                <span class="rate-badge" :class="paper.humanRate < 5 ? 'rate-low' : 'rate-mid'">
-                  {{ paper.humanRate }}%
+                <span class="rate-badge" :class="paper.avgHumanRate < 5 ? 'rate-low' : 'rate-mid'">
+                  {{ paper.avgHumanRate }}%
                 </span>
               </td>
-              <td>{{ paper.university }}</td>
-              <td>{{ paper.style }}</td>
+              <td>{{ paper.paperCount }}</td>
             </tr>
           </tbody>
         </table>

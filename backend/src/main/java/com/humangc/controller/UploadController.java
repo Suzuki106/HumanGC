@@ -39,7 +39,9 @@ public class UploadController {
     @PostMapping("/upload")
     public UploadResponse upload(
             @RequestParam("file") MultipartFile file,
-            @RequestHeader(value = "X-Anonymous-Id", required = false) String anonymousId) {
+            @RequestHeader(value = "X-Anonymous-Id", required = false) String anonymousId,
+            @RequestParam(value = "region", required = false) String region,
+            @RequestParam(value = "school", required = false) String school) {
 
         log.info("Upload request: filename={}, size={}, anonymousId={}",
                 file.getOriginalFilename(), file.getSize(), anonymousId);
@@ -82,7 +84,7 @@ public class UploadController {
         }
 
         // Find or create user
-        User user = findOrCreateUser(anonymousId);
+        User user = findOrCreateUser(anonymousId, region, school);
 
         // Save paper
         Paper paper = new Paper();
@@ -159,7 +161,7 @@ public class UploadController {
         }
     }
 
-    private User findOrCreateUser(String anonymousId) {
+    private User findOrCreateUser(String anonymousId, String region, String school) {
         if (anonymousId == null || anonymousId.isBlank()) {
             anonymousId = "user_" + UUID.randomUUID().toString().substring(0, 8);
         }
@@ -168,13 +170,34 @@ public class UploadController {
         wrapper.eq(User::getAnonymousId, anonymousId);
         User user = userMapper.selectOne(wrapper);
 
+        String resolvedRegion = (region != null && !region.isBlank()) ? region : "未知地区";
+        String resolvedSchool = (school != null && !school.isBlank()) ? school : "未知学校";
+
         if (user == null) {
             user = new User();
             user.setAnonymousId(anonymousId);
             user.setNickname("匿名用户");
+            user.setRegion(resolvedRegion);
+            user.setSchool(resolvedSchool);
             user.setCreatedAt(LocalDateTime.now());
             userMapper.insert(user);
-            log.info("Created new user: id={}, anonymousId={}", user.getId(), anonymousId);
+            log.info("Created new user: id={}, anonymousId={}, region={}, school={}",
+                    user.getId(), anonymousId, resolvedRegion, resolvedSchool);
+        } else {
+            boolean updated = false;
+            if (user.getRegion() == null || user.getRegion().isBlank()) {
+                user.setRegion(resolvedRegion);
+                updated = true;
+            }
+            if (user.getSchool() == null || user.getSchool().isBlank()) {
+                user.setSchool(resolvedSchool);
+                updated = true;
+            }
+            if (updated) {
+                userMapper.updateById(user);
+                log.info("Updated user region/school: id={}, region={}, school={}",
+                        user.getId(), resolvedRegion, resolvedSchool);
+            }
         }
 
         return user;

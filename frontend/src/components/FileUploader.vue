@@ -1,14 +1,21 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { upload } from '../api'
+import { useAppStore } from '../stores/app'
 
+const props = defineProps({
+  showUserMeta: { type: Boolean, default: false }
+})
 const emit = defineEmits(['file-uploaded'])
+const appStore = useAppStore()
 
 const isDragging = ref(false)
 const selectedFile = ref(null)
 const uploadProgress = ref(0)
 const isUploading = ref(false)
 const errorMessage = ref('')
+const region = ref('')
+const school = ref('')
 
 const allowedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain']
 const allowedExtensions = ['.pdf', '.docx', '.txt']
@@ -76,7 +83,7 @@ async function startUpload() {
       }
     }, 200)
 
-    const res = await upload(selectedFile.value)
+    const res = await upload(selectedFile.value, region.value, school.value, appStore.anonymousId)
     clearInterval(progressInterval)
     uploadProgress.value = 100
     const paperId = res.data?.paperId || res.data?.id
@@ -136,6 +143,29 @@ function clearFile() {
         <div class="file-info">
           <span class="file-name">{{ selectedFile.name }}</span>
           <span class="file-size">{{ fileSizeFormatted }}</span>
+        </div>
+
+        <div class="user-meta" v-if="showUserMeta && !isUploading && uploadProgress !== 100">
+          <div class="meta-field">
+            <label class="meta-label">地区</label>
+            <input
+              v-model="region"
+              type="text"
+              class="meta-input"
+              placeholder="未知地区"
+              maxlength="64"
+            />
+          </div>
+          <div class="meta-field">
+            <label class="meta-label">学校</label>
+            <input
+              v-model="school"
+              type="text"
+              class="meta-input"
+              placeholder="未知学校"
+              maxlength="128"
+            />
+          </div>
         </div>
 
         <div class="progress-bar" v-if="isUploading">
@@ -220,6 +250,46 @@ function clearFile() {
   font-size: 12px;
   color: var(--text-light);
   margin: 8px 0 0;
+}
+
+.user-meta {
+  display: flex;
+  gap: 16px;
+  width: 100%;
+  max-width: 400px;
+  justify-content: center;
+}
+
+.meta-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.meta-label {
+  font-size: 12px;
+  color: var(--text-light);
+  font-weight: 500;
+}
+
+.meta-input {
+  padding: 6px 12px;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.meta-input:focus {
+  border-color: var(--primary-blue);
+}
+
+.meta-input::placeholder {
+  color: #bbb;
 }
 
 .file-info {

@@ -1,9 +1,6 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
 import { getLeaderboard } from '../api'
-
-const router = useRouter()
 
 const activeTab = ref('person')
 const page = ref(1)
@@ -26,32 +23,10 @@ async function loadData() {
     records.value = res.data.entries || []
     totalRecords.value = res.data.total || records.value.length
   } catch {
-    records.value = generateMockData(activeTab.value)
-    totalRecords.value = 50
+    records.value = []
+    totalRecords.value = 0
   }
   isLoading.value = false
-}
-
-function generateMockData(type) {
-  const names = ['张三', '李四', '王五', '赵六', '钱七', '孙八', '周九', '吴十', '郑十一', '王十二']
-  const universities = ['清华大学', '北京大学', '浙江大学', '上海交通大学', '华中科技大学', '复旦大学', '南京大学', '中国科学技术大学']
-  const regions = ['北京', '上海', '浙江', '湖北', '江苏', '广东', '陕西', '四川']
-
-  const data = []
-  for (let i = 0; i < 10; i++) {
-    const rank = (page.value - 1) * pageSize.value + i + 1
-    const rate = (Math.random() * 15 + 1).toFixed(1)
-    const count = Math.floor(Math.random() * 50) + 3
-
-    data.push({
-      rank,
-      name: type === 'person' ? (names[i] || '匿名用户') : (type === 'region' ? regions[i % regions.length] : universities[i % universities.length]),
-      avgHumanRate: parseFloat(rate),
-      paperCount: count,
-      id: 'item_' + rank
-    })
-  }
-  return data
 }
 
 const totalPages = () => Math.max(1, Math.ceil(totalRecords.value / pageSize.value))
@@ -76,7 +51,7 @@ watch(page, () => {
 })
 
 function onRowClick(item) {
-  router.push('/paper/' + item.id)
+  // Leaderboard entries don't have paper id; no navigation needed
 }
 
 onMounted(() => {
@@ -143,8 +118,6 @@ onMounted(() => {
             <tr
               v-for="item in records"
               :key="item.rank"
-              @click="onRowClick(item)"
-              style="cursor: pointer;"
             >
               <td>
                 <span class="rank-badge" :class="'rank-' + item.rank">

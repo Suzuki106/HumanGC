@@ -79,7 +79,7 @@ onMounted(() => {
       <!-- Upload Section -->
       <div class="card section-card">
         <h3 class="card-title">上传论文</h3>
-        <FileUploader @file-uploaded="onFileUploaded" />
+        <FileUploader show-user-meta @file-uploaded="onFileUploaded" />
       </div>
 
       <!-- Detect Button -->
