@@ -79,6 +79,9 @@ public class LeaderboardService {
             case "school":
                 aggregated = aggregateBySchool();
                 break;
+            case "paper":
+                aggregated = aggregateByPaper();
+                break;
             default:
                 throw new RuntimeException("Unknown leaderboard type: " + type);
         }
@@ -252,6 +255,27 @@ public class LeaderboardService {
             if (latestPaper != null) {
                 le.setPaperId(latestPaper.getId());
             }
+            entries.add(le);
+        }
+
+        return entries;
+    }
+
+    /**
+     * Aggregate individual papers — each paper is its own ranking entry.
+     */
+    private List<LeaderboardEntry> aggregateByPaper() {
+        LambdaQueryWrapper<Paper> wrapper = new LambdaQueryWrapper<>();
+        wrapper.isNotNull(Paper::getHumanRate);
+        List<Paper> papers = paperMapper.selectList(wrapper);
+
+        List<LeaderboardEntry> entries = new ArrayList<>();
+        for (Paper paper : papers) {
+            LeaderboardEntry le = new LeaderboardEntry(0,
+                    paper.getOriginalFilename() != null ? paper.getOriginalFilename() : "未知文件",
+                    paper.getHumanRate(),
+                    1);
+            le.setPaperId(paper.getId());
             entries.add(le);
         }
 

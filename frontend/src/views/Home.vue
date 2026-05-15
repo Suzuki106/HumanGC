@@ -54,7 +54,7 @@ const features = [
 
 async function loadLeaderboard() {
   try {
-    const res = await getLeaderboard('person', 1, 5)
+    const res = await getLeaderboard('paper', 1, 5)
     topPapers.value = (res.data.entries || []).slice(0, 5)
   } catch {
     topPapers.value = []
@@ -144,9 +144,8 @@ onMounted(() => {
           <thead>
             <tr>
               <th>排名</th>
-              <th>名称</th>
+              <th>论文名称</th>
               <th>含人率</th>
-              <th>论文数量</th>
             </tr>
           </thead>
           <tbody>
@@ -168,7 +167,6 @@ onMounted(() => {
                   {{ paper.avgHumanRate }}%
                 </span>
               </td>
-              <td>{{ paper.paperCount }}</td>
             </tr>
           </tbody>
         </table>

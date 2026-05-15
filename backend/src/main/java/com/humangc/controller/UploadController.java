@@ -185,18 +185,18 @@ public class UploadController {
                     user.getId(), anonymousId, resolvedRegion, resolvedSchool);
         } else {
             boolean updated = false;
-            if (user.getRegion() == null || user.getRegion().isBlank()) {
-                user.setRegion(resolvedRegion);
+            if (region != null && !region.isBlank()) {
+                user.setRegion(region);
                 updated = true;
             }
-            if (user.getSchool() == null || user.getSchool().isBlank()) {
-                user.setSchool(resolvedSchool);
+            if (school != null && !school.isBlank()) {
+                user.setSchool(school);
                 updated = true;
             }
             if (updated) {
                 userMapper.updateById(user);
                 log.info("Updated user region/school: id={}, region={}, school={}",
-                        user.getId(), resolvedRegion, resolvedSchool);
+                        user.getId(), user.getRegion(), user.getSchool());
             }
         }
 
