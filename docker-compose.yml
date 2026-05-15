@@ -32,7 +32,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/humangc?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
       SPRING_DATASOURCE_USERNAME: humangc
       SPRING_DATASOURCE_PASSWORD: humangc123
-      DEEPSEEK_API_KEY: sk-eca119e4ebb14d469c7c0d1338672db1
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
     ports:
       - "8080:8080"
 
