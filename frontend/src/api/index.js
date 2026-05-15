@@ -56,4 +56,8 @@ export function getServerStatus() {
   return apiClient.get('/server-status')
 }
 
+export function getStats() {
+  return apiClient.get('/stats')
+}
+
 export default apiClient

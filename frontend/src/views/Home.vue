@@ -2,12 +2,16 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '../stores/app'
-import { getLeaderboard } from '../api'
+import { getLeaderboard, getStats } from '../api'
 import ShutdownBar from '../components/ShutdownBar.vue'
 
 const router = useRouter()
 const appStore = useAppStore()
 const topPapers = ref([])
+const stats = ref({
+  totalPapers: 0,
+  shitsifiedPapers: 0
+})
 
 const features = [
   {
@@ -57,8 +61,18 @@ async function loadLeaderboard() {
   }
 }
 
+async function loadStats() {
+  try {
+    const res = await getStats()
+    stats.value = res.data
+  } catch {
+    // keep defaults
+  }
+}
+
 onMounted(() => {
   loadLeaderboard()
+  loadStats()
 })
 </script>
 
@@ -80,16 +94,16 @@ onMounted(() => {
         </div>
         <div class="hero-stats">
           <div class="stat-item">
-            <span class="stat-num">128,456</span>
+            <span class="stat-num">{{ stats.totalPapers.toLocaleString() }}</span>
             <span class="stat-label">已检测论文</span>
           </div>
           <div class="stat-item">
-            <span class="stat-num">98.7%</span>
+            <span class="stat-num">98.5%</span>
             <span class="stat-label">检测准确率</span>
           </div>
           <div class="stat-item">
-            <span class="stat-num">4</span>
-            <span class="stat-label">风格模板</span>
+            <span class="stat-num">{{ stats.shitsifiedPapers.toLocaleString() }}</span>
+            <span class="stat-label">屎山论文数</span>
           </div>
         </div>
       </div>
