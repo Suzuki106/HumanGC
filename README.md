@@ -74,21 +74,6 @@ export DEEPSEEK_API_KEY=sk-your-key-here
 docker compose up -d
 ```
 
-## API
-
-| Method | Path | 说明 |
-|--------|------|------|
-| POST | `/api/upload` | 上传论文（PDF / DOCX / TXT） |
-| POST | `/api/detect/{id}` | AI 评估含人率 |
-| POST | `/api/shitsify/{id}` | 一键变史 |
-| GET | `/api/review/{id}` | AI 阅卷点评 |
-| GET | `/api/leaderboard?type=&page=&size=` | 排行榜（person / region / school / paper） |
-| GET | `/api/paper/{id}` | 论文详情 |
-| GET | `/api/paper/user/{anonymousId}` | 用户上传历史 |
-| GET | `/api/stats` | 平台统计数据 |
-| POST | `/api/donate` | 打赏续命 |
-| GET | `/api/server-status` | 倒闭进度 |
-
 ## 项目结构
 
 ```
