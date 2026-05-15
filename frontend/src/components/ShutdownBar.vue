@@ -62,6 +62,7 @@ onUnmounted(() => {
   padding: 8px 20px;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 10px;
   flex-wrap: wrap;
   font-size: 13px;
