@@ -74,7 +74,8 @@ public class HumanRateService {
         if (text == null || text.isBlank()) throw new RuntimeException("Paper text is empty");
 
         // ── 1. 统计层：7 维度特征分析 ──
-        BigDecimal statRate = calculator.calculate(text);
+        Map<String, Double> dimensions = new LinkedHashMap<>();
+        BigDecimal statRate = calculator.calculateWithDimensions(text, dimensions);
         log.info("Statistical human rate: {}%", statRate);
 
         // ── 2. AI 层：DeepSeek 定性评估 ──
@@ -117,7 +118,7 @@ public class HumanRateService {
         log.info("HumanRate final: paperId={}, statRate={}, aiRate={}, finalRate={}",
                 paperId, statRate, aiRate, finalRate);
 
-        return new DetectResponse(paperId, finalRate, summary);
+        return new DetectResponse(paperId, finalRate, summary, dimensions);
     }
 
     private String callDeepSeek(String text) throws Exception {

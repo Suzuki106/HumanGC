@@ -4,6 +4,7 @@ import { useAppStore } from '../stores/app'
 import { detect, getReview, getUserPapers } from '../api'
 import FileUploader from '../components/FileUploader.vue'
 import RateGauge from '../components/RateGauge.vue'
+import DimensionRadar from '../components/DimensionRadar.vue'
 
 const appStore = useAppStore()
 
@@ -16,6 +17,7 @@ const humanRate = ref(0)
 const summaryText = ref('')
 const reviewText = ref('')
 const isReviewLoading = ref(false)
+const dimensions = ref({})
 
 async function onFileUploaded(id) {
   paperId.value = id
@@ -34,6 +36,7 @@ async function startDetect() {
     detectResult.value = res.data
     humanRate.value = res.data.humanRate || res.data.rate || 0
     summaryText.value = res.data.summary || '含人率评估完成'
+    dimensions.value = res.data.dimensions || {}
 
     // Trigger AI review
     isReviewLoading.value = true
@@ -109,6 +112,7 @@ onMounted(() => {
           <div class="rate-display">
             <RateGauge :rate="humanRate" />
           </div>
+          <DimensionRadar v-if="Object.keys(dimensions).length" :dimensions="dimensions" />
           <p class="summary-text">{{ summaryText }}</p>
         </div>
 

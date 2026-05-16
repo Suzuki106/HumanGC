@@ -41,6 +41,14 @@ public class HumanRateCalculator {
      * 对整个文本计算含人率（0-100）。
      */
     public BigDecimal calculate(String text) {
+        return calculateWithDimensions(text, null);
+    }
+
+    /**
+     * 计算含人率并导出各维度得分。
+     * @param dimensionsOut 若不为 null，填充各维度加权得分（0-100 范围）
+     */
+    public BigDecimal calculateWithDimensions(String text, Map<String, Double> dimensionsOut) {
         if (text == null || text.isBlank()) return BigDecimal.ZERO;
 
         // 归一化文本
@@ -49,31 +57,53 @@ public class HumanRateCalculator {
         List<String> words = tokenize(cleaned);
 
         if (sentences.isEmpty() || words.size() < 10) {
-            // 文本太短，无法可靠估计，返回固定中等值
+            if (dimensionsOut != null) {
+                dimensionsOut.put("burstiness", 50.0);
+                dimensionsOut.put("bigram", 50.0);
+                dimensionsOut.put("lexical", 50.0);
+                dimensionsOut.put("readability", 50.0);
+                dimensionsOut.put("punctuation", 50.0);
+                dimensionsOut.put("sentenceVar", 50.0);
+                dimensionsOut.put("hapax", 50.0);
+            }
             return BigDecimal.valueOf(50.0);
         }
 
-        double score = 0.0;
+        // 计算各维度原始分（0-100），只算一次
+        double burstiness  = calcBurstiness(sentences);
+        double bigram      = calcBigramDiversity(words);
+        double lexical     = calcLexicalDiversity(words);
+        double readability = calcReadabilityInverse(cleaned, sentences, words);
+        double punctuation = calcPunctuationDiversity(text);
+        double sentenceVar = calcSentenceLengthVar(sentences);
+        double hapax       = calcHapaxRatio(words);
 
-        score += W_BURSTINESS   * calcBurstiness(sentences);
-        score += W_BIGRAM        * calcBigramDiversity(words);
-        score += W_LEXICAL      * calcLexicalDiversity(words);
-        score += W_READABILITY  * calcReadabilityInverse(cleaned, sentences, words);
-        score += W_PUNCTUATION  * calcPunctuationDiversity(text);
-        score += W_SENTENCE_VAR * calcSentenceLengthVar(sentences);
-        score += W_HAPAX        * calcHapaxRatio(words);
+        // 加权求和
+        double score = W_BURSTINESS * burstiness
+                     + W_BIGRAM      * bigram
+                     + W_LEXICAL     * lexical
+                     + W_READABILITY * readability
+                     + W_PUNCTUATION * punctuation
+                     + W_SENTENCE_VAR * sentenceVar
+                     + W_HAPAX       * hapax;
 
-        // 映射到 0-100
         int rate = (int) Math.round(Math.max(0, Math.min(100, score)));
+
+        // 导出维度得分
+        if (dimensionsOut != null) {
+            dimensionsOut.put("burstiness",  round(burstiness));
+            dimensionsOut.put("bigram",      round(bigram));
+            dimensionsOut.put("lexical",     round(lexical));
+            dimensionsOut.put("readability", round(readability));
+            dimensionsOut.put("punctuation", round(punctuation));
+            dimensionsOut.put("sentenceVar", round(sentenceVar));
+            dimensionsOut.put("hapax",       round(hapax));
+        }
+
         log.info("HumanRate calculated: rate={}, burstiness={}, bigram={}, lexical={}, readability={}, punct={}, sentVar={}, hapax={}",
                 rate,
-                round(W_BURSTINESS * calcBurstiness(sentences)),
-                round(W_BIGRAM * calcBigramDiversity(words)),
-                round(W_LEXICAL * calcLexicalDiversity(words)),
-                round(W_READABILITY * calcReadabilityInverse(cleaned, sentences, words)),
-                round(W_PUNCTUATION * calcPunctuationDiversity(text)),
-                round(W_SENTENCE_VAR * calcSentenceLengthVar(sentences)),
-                round(W_HAPAX * calcHapaxRatio(words)));
+                round(burstiness), round(bigram), round(lexical),
+                round(readability), round(punctuation), round(sentenceVar), round(hapax));
 
         return BigDecimal.valueOf(rate);
     }
