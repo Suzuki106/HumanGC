@@ -125,13 +125,14 @@ onMounted(() => {
           如果这个网站曾经帮到过你，请考虑施舍一点，让服务器多活几天。
         </p>
 
-        <!-- QR Code Placeholder -->
-        <div class="qr-placeholder">
-          <div class="qr-box">
-            <div class="qr-icon">&#128179;</div>
-            <p>付款码占位 - 开发阶段</p>
-            <p class="qr-hint">上线后将替换为真实收款二维码</p>
-          </div>
+        <!-- QR Code -->
+        <div class="qr-section">
+          <img src="/alipay.jpg" alt="支付宝收款码" class="qr-image" />
+          <p class="qr-hint">请使用支付宝扫码打赏</p>
+        </div>
+
+        <div class="simulate-notice">
+          &#128161; 打赏按钮暂为模拟功能，不会实际扣款。如需真实打赏请使用上方收款码。
         </div>
 
         <!-- Preset Amounts -->
@@ -317,41 +318,35 @@ onMounted(() => {
   margin: 0 0 24px;
 }
 
-.qr-placeholder {
+.qr-section {
   text-align: center;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
-.qr-box {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 200px;
-  height: 200px;
-  background: #f0f4fa;
-  border: 2px dashed var(--border-color);
-  border-radius: 12px;
-  padding: 20px;
-}
-
-.qr-icon {
-  font-size: 40px;
-  margin-bottom: 10px;
-}
-
-.qr-box p {
-  font-size: 13px;
-  color: var(--text-dark);
-  margin: 0;
-  font-weight: 600;
+.qr-image {
+  width: 220px;
+  height: 220px;
+  border-radius: 10px;
+  border: 2px solid var(--border-color);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  object-fit: contain;
 }
 
 .qr-hint {
-  font-size: 11px !important;
-  color: var(--text-light) !important;
-  font-weight: 400 !important;
-  margin-top: 4px !important;
+  font-size: 12px;
+  color: var(--text-light);
+  margin: 8px 0 0;
+}
+
+.simulate-notice {
+  text-align: center;
+  padding: 10px 16px;
+  background: #fef9e7;
+  border: 1px solid #f9e79f;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #7d6608;
+  margin-bottom: 20px;
 }
 
 /* Preset Grid */
