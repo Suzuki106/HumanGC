@@ -1,9 +1,13 @@
 <script setup>
 import { ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { shitsify } from '../api'
 import FileUploader from '../components/FileUploader.vue'
 
-const paperId = ref(null)
+const route = useRoute()
+
+const paperId = ref(route.query.paperId ? Number(route.query.paperId) : null)
+const fileReady = ref(false)
 const isGenerating = ref(false)
 const result = ref(null)
 const errorMsg = ref('')
@@ -11,6 +15,7 @@ const errorMsg = ref('')
 async function onFileUploaded(id) {
   paperId.value = id
   result.value = null
+  fileReady.value = true
 }
 
 async function doShitsify() {
@@ -40,14 +45,15 @@ async function doShitsify() {
 
       <!-- Upload -->
       <div class="card section-card">
-        <h3 class="card-title">上传论文</h3>
+        <h3 class="card-title">上传论文（或从检测页直接跳转）</h3>
         <FileUploader @file-uploaded="onFileUploaded" />
       </div>
 
       <!-- Generate Button -->
       <div class="card section-card" v-if="paperId && !result">
         <div class="generate-action">
-          <p class="ready-text">文件已就绪。警告：生成结果不可逆，可能引发心理不适。</p>
+          <p class="ready-text" v-if="!fileReady">已选择论文 #{{ paperId }}，可直接变史</p>
+          <p class="ready-text" v-else>文件已就绪。警告：生成结果不可逆，可能引发心理不适。</p>
           <p class="error-msg" v-if="errorMsg">{{ errorMsg }}</p>
           <button
             class="btn-generate"

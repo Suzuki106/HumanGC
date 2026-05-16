@@ -142,8 +142,8 @@ onMounted(() => {
             </template>
           </p>
           <router-link
-            v-if="humanRate > 60"
-            to="/shitsify"
+            v-if="paperId"
+            :to="'/shitsify?paperId=' + paperId"
             class="btn-orange"
           >
             一键变史，降低含人率 &rarr;
