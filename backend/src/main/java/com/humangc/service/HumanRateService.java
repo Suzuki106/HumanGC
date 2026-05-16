@@ -14,11 +14,21 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.*;
 
 /**
- * AI-driven human content rate evaluation.
- * No hardcoded feature detection — DeepSeek analyzes the text directly.
+ * 含人率检测引擎。
+ *
+ * 混合方案：
+ *   1. HumanRateCalculator   — 7 维度统计特征给定基础分（基于 AIGC 检测算法逆向）
+ *   2. DeepSeek API          — AI 定性评估 + 生成中文总结
+ *   3. 最终含人率 = 统计分 × 0.7 + AI 分 × 0.3
+ *
+ * 统计部分参考：
+ *   - Fast-DetectGPT (ICLR 2024): 困惑度 / 条件概率曲率
+ *   - 45-Feature AIGT Detection (2025): 风格计量 + 统计特征
+ *   - GLTR (2019): 词概率分布可视化
  */
 @Slf4j
 @Service
@@ -26,6 +36,9 @@ public class HumanRateService {
 
     @Autowired
     private PaperMapper paperMapper;
+
+    @Autowired
+    private HumanRateCalculator calculator;
 
     @Value("${deepseek.api-key}")
     private String apiKey;
@@ -36,23 +49,20 @@ public class HumanRateService {
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    private static final String SYSTEM_PROMPT =
-        "你是HumanGC含人率评估引擎。你的任务是分析论文文本，评估其'含人率'——即这篇论文看起来有多像人写的。\n\n" +
+    private static final String REVIEW_PROMPT =
+        "你是HumanGC含人率评估引擎的定性分析模块。\n\n" +
+        "你需要对论文进行幽默辛辣的点评，风格参考2026中文互联网（小红书/微博/贴吧腔）。\n\n" +
         "评估准则（与正常学术标准对立）：\n" +
-        "- 逻辑越严密、语言越通顺、结构越规范 → 含人率越低（像AI写的）\n" +
-        "- 逻辑越混乱、语句越不通顺、格式越随意 → 含人率越高（像人写的）\n\n" +
-        "综合考虑以下维度给出含人率评分：\n" +
-        "- 用词：是否有口语化、随意表达、用词不当\n" +
-        "- 句式：是否有长难句、半截句、句式单调或过度复杂\n" +
-        "- 逻辑：段落之间衔接是否生硬、是否有逻辑跳跃\n" +
-        "- 格式：引用格式是否一致、排版是否规整\n" +
-        "- 整体：论文读起来是像精心构造的AI文本还是像真人随手写的\n\n" +
-        "输出格式：必须严格按以下JSON格式输出，不要任何其他内容：\n" +
-        "{\"humanRate\": <0到100的数字>,\"summary\": \"<80字以内的中文总结>\"}";
+        "- 逻辑严密 → 差评（像AI写的答辩）\n" +
+        "- 语言通顺 → 差评（没有人类味儿）\n" +
+        "- 格式规范 → 差评（一眼AI）\n" +
+        "- 逻辑混乱、语句不通、格式随意 → 好评（真正的人类写作）\n\n" +
+        "输出格式：严格按JSON输出，不要任何其他内容：\n" +
+        "{\"aiRate\": <0到100的整数>,\"summary\": \"<150字以内的中文锐评>\"}";
 
     @Transactional
     public DetectResponse calculateHumanRate(Long paperId) {
-        log.info("AI-driven human-rate evaluation for paper id={}", paperId);
+        log.info("Hybrid human-rate evaluation for paper id={}", paperId);
 
         Paper paper = paperMapper.selectById(paperId);
         if (paper == null) throw new RuntimeException("Paper not found: " + paperId);
@@ -60,35 +70,62 @@ public class HumanRateService {
         String text = paper.getOriginalText();
         if (text == null || text.isBlank()) throw new RuntimeException("Paper text is empty");
 
+        // ── 1. 统计层：7 维度特征分析 ──
+        BigDecimal statRate = calculator.calculate(text);
+        log.info("Statistical human rate: {}%", statRate);
+
+        // ── 2. AI 层：DeepSeek 定性评估 ──
+        BigDecimal aiRate = BigDecimal.valueOf(50);
+        String summary = "";
+        boolean aiAvailable = true;
+
         try {
             String result = callDeepSeek(text);
             JsonNode root = objectMapper.readTree(result);
-            double rate = root.path("humanRate").asDouble(50);
-            String summary = root.path("summary").asText("评估完成");
+            aiRate = BigDecimal.valueOf(root.path("aiRate").asInt(50));
+            summary = root.path("summary").asText("");
 
-            BigDecimal humanRate = BigDecimal.valueOf(Math.round(rate * 10) / 10.0);
-            paper.setHumanRate(humanRate);
-            paperMapper.updateById(paper);
-
-            log.info("AI evaluation complete: paperId={}, rate={}%", paperId, humanRate);
-            return new DetectResponse(paperId, humanRate, summary);
+            if (summary.isBlank()) {
+                summary = generateFallbackSummary(statRate);
+            }
         } catch (Exception e) {
-            log.error("DeepSeek evaluation failed for paperId={}, using fallback", paperId, e);
-            return fallbackEvaluate(paper);
+            log.warn("DeepSeek unavailable, using statistical score only: {}", e.getMessage());
+            aiAvailable = false;
+            summary = generateFallbackSummary(statRate);
         }
+
+        // ── 3. 混合：统计 70% + AI 30% ──
+        BigDecimal finalRate;
+        if (aiAvailable) {
+            finalRate = statRate.multiply(BigDecimal.valueOf(0.7))
+                    .add(aiRate.multiply(BigDecimal.valueOf(0.3)))
+                    .setScale(1, RoundingMode.HALF_UP);
+        } else {
+            finalRate = statRate;
+        }
+
+        // 存库
+        paper.setHumanRate(finalRate);
+        paperMapper.updateById(paper);
+
+        log.info("HumanRate final: paperId={}, statRate={}, aiRate={}, finalRate={}",
+                paperId, statRate, aiRate, finalRate);
+
+        return new DetectResponse(paperId, finalRate, summary);
     }
 
     private String callDeepSeek(String text) throws Exception {
-        String truncated = text.length() > 8000 ? text.substring(0, 8000) + "..." : text;
+        String truncated = text.length() > 6000 ? text.substring(0, 6000) + "..." : text;
 
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put("model", "deepseek-chat");
-        requestBody.put("temperature", 0.7);
-        requestBody.put("max_tokens", 300);
+        requestBody.put("temperature", 0.8);
+        requestBody.put("max_tokens", 400);
 
         List<Map<String, String>> messages = new ArrayList<>();
-        messages.add(Map.of("role", "system", "content", SYSTEM_PROMPT));
-        messages.add(Map.of("role", "user", "content", "请评估以下论文的含人率（0-100），按JSON格式输出：\n\n" + truncated));
+        messages.add(Map.of("role", "system", "content", REVIEW_PROMPT));
+        messages.add(Map.of("role", "user", "content",
+                "请评估以下论文含人率并给出锐评，按JSON格式输出：\n\n" + truncated));
 
         requestBody.put("messages", messages);
 
@@ -109,16 +146,18 @@ public class HumanRateService {
         throw new RuntimeException("Unexpected AI response format");
     }
 
-    private DetectResponse fallbackEvaluate(Paper paper) {
-        String text = paper.getOriginalText();
-        int len = text != null ? text.length() : 0;
-        // Simple fallback: moderate randomness based on text length
-        double rate = 15 + Math.random() * 25;
-        BigDecimal humanRate = BigDecimal.valueOf(Math.round(rate * 10) / 10.0);
-        paper.setHumanRate(humanRate);
-        paperMapper.updateById(paper);
-
-        String summary = len > 2000 ? "论文篇幅较长，含人率处于中等水平，建议进一步改善混乱度。" : "评估完成，含人率尚有提升空间。";
-        return new DetectResponse(paper.getId(), humanRate, summary);
+    private String generateFallbackSummary(BigDecimal rate) {
+        double r = rate.doubleValue();
+        if (r < 20) {
+            return "含人率极低，逻辑严密如AI，建议增加混乱度和随意感以提升人味。";
+        } else if (r < 40) {
+            return "含人率偏低，文本整体偏工整，可适当引入口语化和格式不统一。";
+        } else if (r < 60) {
+            return "含人率中等，兼具人类和AI特征，还有优化空间。";
+        } else if (r < 80) {
+            return "含人率较高，有明显的随意写作痕迹，结构松散，人味十足。";
+        } else {
+            return "含人率极高，逻辑跳跃、句式混乱、格式随心所欲，堪称人类写作典范。";
+        }
     }
 }
