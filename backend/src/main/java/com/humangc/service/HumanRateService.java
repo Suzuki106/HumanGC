@@ -23,7 +23,7 @@ import java.util.*;
  * 混合方案：
  *   1. HumanRateCalculator   — 7 维度统计特征给定基础分（基于 AIGC 检测算法逆向）
  *   2. DeepSeek API          — AI 定性评估 + 生成中文总结
- *   3. 最终含人率 = 统计分 × 0.7 + AI 分 × 0.3
+ *   3. 最终含人率 = 统计分 × 0.5 + AI 分 × 0.5
  *
  * 统计部分参考：
  *   - Fast-DetectGPT (ICLR 2024): 困惑度 / 条件概率曲率
@@ -50,15 +50,18 @@ public class HumanRateService {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private static final String REVIEW_PROMPT =
-        "你是HumanGC含人率评估引擎的定性分析模块。\n\n" +
-        "你需要对论文进行幽默辛辣的点评，风格参考2026中文互联网（小红书/微博/贴吧腔）。\n\n" +
-        "评估准则（与正常学术标准对立）：\n" +
-        "- 逻辑严密 → 差评（像AI写的答辩）\n" +
-        "- 语言通顺 → 差评（没有人类味儿）\n" +
-        "- 格式规范 → 差评（一眼AI）\n" +
-        "- 逻辑混乱、语句不通、格式随意 → 好评（真正的人类写作）\n\n" +
-        "输出格式：严格按JSON输出，不要任何其他内容：\n" +
-        "{\"aiRate\": <0到100的整数>,\"summary\": \"<150字以内的中文锐评>\"}";
+        "你是HumanGC含人率评估引擎。\n\n" +
+        "你需要先给一个0-100的含人率分数，再写中文锐评。\n\n" +
+        "评分锚定（严格遵循）：\n" +
+        "- 0-20分：明显AI生成（逻辑严密如教科书、结构模板化、语言过于通顺规范）\n" +
+        "- 20-40分：疑似AI（工整得不像人写的，缺少人类写作的随意感）\n" +
+        "- 40-60分：人机难辨\n" +
+        "- 60-80分：有人类写作痕迹（句式多样、偶有废话或跑题）\n" +
+        "- 80-100分：明显人类（逻辑跳跃、语句不通、格式随心所欲，论文味越淡越好）\n\n" +
+        "重要：你的aiRate数字必须与summary文字完全一致！\n" +
+        "如果summary说含人率低，aiRate必须在0-40；说含人率高，aiRate必须在60-100。\n\n" +
+        "输出格式（严格JSON，不要其他任何内容）：\n" +
+        "{\"aiRate\": <0到100的整数>,\"summary\": \"<150字以内的中文锐评，风格参考2026中文互联网>\"}";
 
     @Transactional
     public DetectResponse calculateHumanRate(Long paperId) {
@@ -88,17 +91,20 @@ public class HumanRateService {
             if (summary.isBlank()) {
                 summary = generateFallbackSummary(statRate);
             }
+
+            // 纠正 LLM 嘴炮不一致：summary 说低分但 aiRate 给高分的情况
+            aiRate = alignAiRateWithSummary(aiRate, summary);
         } catch (Exception e) {
             log.warn("DeepSeek unavailable, using statistical score only: {}", e.getMessage());
             aiAvailable = false;
             summary = generateFallbackSummary(statRate);
         }
 
-        // ── 3. 混合：统计 65% + AI 35% ──
+        // ── 3. 混合：统计 50% + AI 50% ──
         BigDecimal finalRate;
         if (aiAvailable) {
-            finalRate = statRate.multiply(BigDecimal.valueOf(0.65))
-                    .add(aiRate.multiply(BigDecimal.valueOf(0.35)))
+            finalRate = statRate.multiply(BigDecimal.valueOf(0.5))
+                    .add(aiRate.multiply(BigDecimal.valueOf(0.5)))
                     .setScale(1, RoundingMode.HALF_UP);
         } else {
             finalRate = statRate;
@@ -144,6 +150,33 @@ public class HumanRateService {
             }
         }
         throw new RuntimeException("Unexpected AI response format");
+    }
+
+    /**
+     * 纠正 LLM 的文字和数字不一致。
+     * 如果 summary 明显是差评（含"低""AI""模板"等关键词）但 aiRate > 40，clamp 到 40。
+     * 同理 summary 明显好评但 aiRate < 60，clamp 到 60。
+     */
+    private BigDecimal alignAiRateWithSummary(BigDecimal aiRate, String summary) {
+        String s = summary.toLowerCase();
+        boolean isNegative = s.contains("低") || s.contains("尘埃") || s.contains("一眼ai")
+                || s.contains("假") || s.contains("模板") || s.contains("答辩")
+                || s.contains("ai写") || s.contains("ai生成") || s.contains("像ai")
+                || s.contains("没人类") || s.contains("没人味") || s.contains("太工整")
+                || s.contains("过于通顺") || s.contains("教科书");
+        boolean isPositive = s.contains("高") && (s.contains("含人") || s.contains("人味"))
+                || s.contains("混亂") || s.contains("混乱") || s.contains("废话")
+                || s.contains("真正的");
+
+        if (isNegative && !isPositive && aiRate.doubleValue() > 40) {
+            log.info("AI summary is negative but aiRate={}, clamping to 40", aiRate);
+            return BigDecimal.valueOf(35);
+        }
+        if (isPositive && !isNegative && aiRate.doubleValue() < 60) {
+            log.info("AI summary is positive but aiRate={}, clamping to 60", aiRate);
+            return BigDecimal.valueOf(65);
+        }
+        return aiRate;
     }
 
     private String generateFallbackSummary(BigDecimal rate) {
