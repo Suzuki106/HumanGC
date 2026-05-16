@@ -94,11 +94,11 @@ public class HumanRateService {
             summary = generateFallbackSummary(statRate);
         }
 
-        // ── 3. 混合：统计 70% + AI 30% ──
+        // ── 3. 混合：统计 65% + AI 35% ──
         BigDecimal finalRate;
         if (aiAvailable) {
-            finalRate = statRate.multiply(BigDecimal.valueOf(0.7))
-                    .add(aiRate.multiply(BigDecimal.valueOf(0.3)))
+            finalRate = statRate.multiply(BigDecimal.valueOf(0.65))
+                    .add(aiRate.multiply(BigDecimal.valueOf(0.35)))
                     .setScale(1, RoundingMode.HALF_UP);
         } else {
             finalRate = statRate;

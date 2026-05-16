@@ -29,9 +29,9 @@ public class HumanRateCalculator {
     private static final JiebaSegmenter SEGMENTER = new JiebaSegmenter();
 
     // ── 子维度权重（总和 1.0，针对中文词级分词校准） ──
-    private static final double W_BURSTINESS     = 0.24;  // 句子突发性
-    private static final double W_PERPLEXITY     = 0.14;  // 困惑度代理
     private static final double W_LEXICAL        = 0.22;  // 词汇多样性 (TTR)
+    private static final double W_BURSTINESS     = 0.22;  // 句子突发性
+    private static final double W_BIGRAM         = 0.16;  // 词组多样性 (bigram TTR)
     private static final double W_READABILITY    = 0.12;  // 平均句长
     private static final double W_PUNCTUATION    = 0.10;  // 标点多样性
     private static final double W_SENTENCE_VAR   = 0.10;  // 句长波动
@@ -56,7 +56,7 @@ public class HumanRateCalculator {
         double score = 0.0;
 
         score += W_BURSTINESS   * calcBurstiness(sentences);
-        score += W_PERPLEXITY   * calcPerplexityProxy(cleaned, words);
+        score += W_BIGRAM        * calcBigramDiversity(words);
         score += W_LEXICAL      * calcLexicalDiversity(words);
         score += W_READABILITY  * calcReadabilityInverse(cleaned, sentences, words);
         score += W_PUNCTUATION  * calcPunctuationDiversity(text);
@@ -65,10 +65,10 @@ public class HumanRateCalculator {
 
         // 映射到 0-100
         int rate = (int) Math.round(Math.max(0, Math.min(100, score)));
-        log.info("HumanRate calculated: rate={}, burstiness={}, perplexity={}, lexical={}, readability={}, punct={}, sentVar={}, hapax={}",
+        log.info("HumanRate calculated: rate={}, burstiness={}, bigram={}, lexical={}, readability={}, punct={}, sentVar={}, hapax={}",
                 rate,
                 round(W_BURSTINESS * calcBurstiness(sentences)),
-                round(W_PERPLEXITY * calcPerplexityProxy(cleaned, words)),
+                round(W_BIGRAM * calcBigramDiversity(words)),
                 round(W_LEXICAL * calcLexicalDiversity(words)),
                 round(W_READABILITY * calcReadabilityInverse(cleaned, sentences, words)),
                 round(W_PUNCTUATION * calcPunctuationDiversity(text)),
@@ -95,47 +95,25 @@ public class HumanRateCalculator {
     }
 
     // ═══════════════════════════════════════════════
-    // 2. 困惑度代理 (Perplexity Proxy)
+    // 2. 词组多样性 (Bigram Type-Token Ratio)
     // ═══════════════════════════════════════════════
-    // 使用字符级 3-gram 熵作为困惑度近似值（参考 KenLM N-gram 思路）
-    // 熵越高 → 文本越不可预测 → 越像人写的
-    private double calcPerplexityProxy(String text, List<String> words) {
-        // 2a. 字符级 trigram 熵
-        Map<String, Integer> trigrams = new HashMap<>();
+    // 词级别 bigram 的 TTR：唯一 bigram 数 / 总 bigram 数
+    // AI 模板文本有大量重复的短语结构（"定义 1"、"模块 A"、"实现 功能"）
+    // 人类文本的短语组合更自由 → bigram TTR 更高
+    private double calcBigramDiversity(List<String> words) {
+        if (words.size() < 2) return 50;
+
+        Map<String, Integer> bigramFreq = new HashMap<>();
         int total = 0;
-        for (int i = 0; i < text.length() - 3; i++) {
-            String tri = text.substring(i, i + 3);
-            trigrams.merge(tri, 1, Integer::sum);
+        for (int i = 0; i < words.size() - 1; i++) {
+            String bigram = words.get(i) + "_" + words.get(i + 1);
+            bigramFreq.merge(bigram, 1, Integer::sum);
             total++;
         }
-        double charEntropy = 0;
-        for (int c : trigrams.values()) {
-            double p = (double) c / total;
-            charEntropy -= p * Math.log(p);
-        }
-        // 归一化：最大可能熵 ≈ log(total)，实际范围 3~8
-        double charScore = clamp(0, 100, charEntropy * 12);
 
-        // 2b. Zipf 偏差 — 人类文本偏离 Zipf 定律更多
-        Map<String, Integer> wordFreq = new HashMap<>();
-        for (String w : words) wordFreq.merge(w.toLowerCase(), 1, Integer::sum);
-        List<Integer> sortedFreq = wordFreq.values().stream()
-                .sorted(Comparator.reverseOrder()).collect(Collectors.toList());
-
-        // Zipf: rank 1 的词频率应该接近 total/1, rank 2 → total/2, ...
-        // 人类文本偏离更大
-        double totalWords = words.size();
-        double zipfDev = 0;
-        int count = Math.min(sortedFreq.size(), 50);
-        for (int i = 0; i < count; i++) {
-            double expected = totalWords / (i + 1.0);
-            double actual = sortedFreq.get(i);
-            zipfDev += Math.abs(actual - expected) / expected;
-        }
-        zipfDev /= count;
-        double zipfScore = clamp(0, 100, zipfDev * 50);
-
-        return (charScore + zipfScore) / 2.0;
+        double bttr = (double) bigramFreq.size() / total;
+        // bttr 典型范围：AI 模板文本 0.5~0.7，人类文本 0.75~0.95
+        return clamp(0, 100, bttr * 130);
     }
 
     // ═══════════════════════════════════════════════
