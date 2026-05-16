@@ -6,26 +6,52 @@
 
 AIGC 检测告诉你论文有多少是 AI 写的。HumanGC 反过来——检测你的论文有多少是**人**写的。
 
-DeepSeek 大模型直接分析论文文本，按反学术标准打分。逻辑太通顺？差评。语句太流畅？扣分。格式太规范？建议一键变史。
+混合检测方案：**7 维度统计算法**（基于 AIGC 检测研究逆向设计）+ **DeepSeek AI 定性评估**，按反学术标准打分。逻辑太通顺？差评。语句太流畅？扣分。格式太规范？建议一键变史。
+
+## 检测原理
+
+### 统计层（权重 40%）
+
+基于 Fast-DetectGPT、GLTR、45-Feature AIGT Detection 等研究的逆向设计，使用 Jieba 中文分词，计算 7 个维度：
+
+| 维度 | 权重 | 说明 |
+|------|------|------|
+| 句子突发性 | 22% | 句长变异系数（CV），AI 文本句长均匀，人类参差不齐 |
+| 词组多样性 | 16% | 词级 Bigram TTR，抓模板结构重复 |
+| 词汇多样性 | 22% | Type-Token Ratio，AI 重复用词 |
+| 平均句长 | 12% | 中文文本复杂度代理指标 |
+| 标点多样性 | 10% | 人类使用更丰富的标点组合 |
+| 句长波动 | 10% | 极差比 + 离群句比例 |
+| 罕用词比例 | 8% | 只出现一次的词占比 |
+
+### AI 层（权重 60%）
+
+DeepSeek 大模型按反学术标准定性评分：逻辑严密扣分、语言通顺扣分、格式规范扣分。逻辑混乱、语句不通、格式随意则加分。
+
+### 最终含人率 = 统计分 × 0.4 + AI 分 × 0.6
+
+检测结果附带雷达图展示 7 维度得分。
 
 ## 功能
 
 | 功能 | 说明 |
 |------|------|
-| 含人率检测 | 上传论文，DeepSeek AI 评估含人率 0-100%，9 大特征维度综合分析 |
-| 一键变史 | 将人类论文转化为 AI 风格的"屎山论文"，4 种经典模板 |
-| AI 阅卷 | 反学术标准的抽象点评，写得好挨骂，写得烂被夸 |
-| 排行榜 | 个人 / 地域 / 高校 / 论文 四维排行，含人率越低排名越高 |
-| 打赏续命 | 资助服务器，进度条基于实际费用实时更新 |
+| 含人率检测 | 上传论文或粘贴文字，混合算法评估含人率 0-100%，雷达图可视化 |
+| 一键变史 | 将人类论文转化为 AI 风格的"屎山论文" |
+| AI 阅卷 | 反学术标准的锐评，写得好挨骂，写得烂被夸 |
+| 隐私控制 | 上传后可选择公开或私密，私密论文原文对其他用户隐藏 |
+| 排行榜 | 个人 / 地域 / 高校 / 论文 四维排行 |
+| 打赏续命 | 基于实际云服务费用的进度条（¥4.87/天） |
 
 ## 技术栈
 
 | 层 | 技术 |
 |---|------|
-| 前端 | Vue 3 + Vite + Pinia + Vue Router + Axios |
+| 前端 | Vue 3 + Vite + Pinia + Vue Router + Axios + ECharts |
 | 后端 | Spring Boot 3.2 + MyBatis-Plus |
 | 数据库 | MySQL 8.0 |
 | AI | DeepSeek API |
+| 中文分词 | Jieba (jieba-analysis) |
 | 文件解析 | Apache PDFBox + Apache POI（PDF / DOCX / TXT） |
 | 部署 | Docker Compose（MySQL + Spring Boot + Nginx） |
 
@@ -33,7 +59,7 @@ DeepSeek 大模型直接分析论文文本，按反学术标准打分。逻辑�
 
 ### 环境要求
 
-- JDK 21+
+- JDK 17+
 - Node.js 18+
 - MySQL 8.0
 - DeepSeek API Key
@@ -67,10 +93,7 @@ npm run dev
 ### Docker Compose 部署
 
 ```bash
-# 设置 API Key
 export DEEPSEEK_API_KEY=sk-your-key-here
-
-# 启动
 docker compose up -d
 ```
 
@@ -81,7 +104,7 @@ HumanGC/
 ├── backend/
 │   └── src/main/java/com/humangc/
 │       ├── controller/          REST API
-│       ├── service/             AI 集成 + 业务逻辑
+│       ├── service/             AI 集成 + 统计算法
 │       ├── mapper/              MyBatis-Plus 数据访问
 │       ├── entity/dto/config/   实体 / 传输对象 / 配置
 │       └── resources/
@@ -89,16 +112,14 @@ HumanGC/
 ├── frontend/
 │   └── src/
 │       ├── views/               页面组件
-│       ├── components/          通用组件
+│       ├── components/          通用组件（含雷达图）
 │       ├── stores/api/router/   Pinia / Axios / Vue Router
 │       └── nginx.conf           Nginx 配置（Docker）
-├── docs/                        设计文档 + 数据库脚本
+├── docs/                        数据库脚本
 └── docker-compose.yml           Docker 部署编排
 ```
 
 ## 配置说明
-
-所有敏感信息通过环境变量注入，不硬编码在配置文件中：
 
 | 环境变量 | 说明 |
 |---------|------|
@@ -111,7 +132,7 @@ HumanGC/
 
 ## 免责声明
 
-娱乐项目，纯属恶搞。论文写得好不好跟含人率没关系。本平台仅供娱乐，请勿用于实际学术不端行为。
+本平台检测结果由 AI 模型生成，仅供娱乐参考，不构成任何学术评价或鉴定依据。请勿用于实际学术不端行为。
 
 ## License
 
