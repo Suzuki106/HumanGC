@@ -9,6 +9,8 @@ const props = defineProps({
 const emit = defineEmits(['file-uploaded'])
 const appStore = useAppStore()
 
+const uploadMode = ref('file') // 'file' | 'text'
+
 const isDragging = ref(false)
 const selectedFile = ref(null)
 const uploadProgress = ref(0)
@@ -16,6 +18,10 @@ const isUploading = ref(false)
 const errorMessage = ref('')
 const region = ref('')
 const school = ref('')
+
+// Text paste mode
+const pastedText = ref('')
+const textFilename = ref('')
 
 const allowedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain']
 const allowedExtensions = ['.pdf', '.docx', '.txt']
@@ -27,6 +33,8 @@ const fileSizeFormatted = computed(() => {
   if (size < 1024 * 1024) return (size / 1024).toFixed(1) + ' KB'
   return (size / (1024 * 1024)).toFixed(2) + ' MB'
 })
+
+const textCharCount = computed(() => pastedText.value.length)
 
 function validateFile(file) {
   if (!file) return false
@@ -69,6 +77,22 @@ function onFileChange(e) {
   }
 }
 
+function prepareTextFile() {
+  if (!pastedText.value.trim()) {
+    errorMessage.value = '请粘贴论文内容'
+    return
+  }
+  if (pastedText.value.length > 500000) {
+    errorMessage.value = '文字内容过长，请控制在50万字以内'
+    return
+  }
+  const filename = textFilename.value.trim() || 'pasted-text.txt'
+  const blob = new Blob([pastedText.value], { type: 'text/plain;charset=UTF-8' })
+  const file = new File([blob], filename.endsWith('.txt') ? filename : filename + '.txt', { type: 'text/plain' })
+  selectedFile.value = file
+  errorMessage.value = ''
+}
+
 async function startUpload() {
   if (!selectedFile.value) return
   isUploading.value = true
@@ -106,97 +130,252 @@ function clearFile() {
   selectedFile.value = null
   uploadProgress.value = 0
   errorMessage.value = ''
+  pastedText.value = ''
+  textFilename.value = ''
+}
+
+function switchMode(mode) {
+  uploadMode.value = mode
+  clearFile()
 }
 </script>
 
 <template>
   <div class="file-uploader">
-    <div
-      class="drop-zone"
-      :class="{ dragging: isDragging, 'has-file': selectedFile }"
-      @dragover="onDragOver"
-      @dragleave="onDragLeave"
-      @drop="onDrop"
-      @click="!selectedFile && $refs.fileInput.click()"
-    >
-      <input
-        ref="fileInput"
-        type="file"
-        accept=".pdf,.docx,.txt"
-        class="file-input-hidden"
-        @change="onFileChange"
-      />
+    <!-- Mode Tabs -->
+    <div class="mode-tabs">
+      <button
+        class="mode-tab"
+        :class="{ active: uploadMode === 'file' }"
+        @click="switchMode('file')"
+      >
+        📄 上传文件
+      </button>
+      <button
+        class="mode-tab"
+        :class="{ active: uploadMode === 'text' }"
+        @click="switchMode('text')"
+      >
+        📋 粘贴文字
+      </button>
+    </div>
 
-      <template v-if="!selectedFile">
-        <div class="upload-icon">
-          <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-            <rect x="6" y="24" width="36" height="18" rx="2" stroke="#1a56b8" stroke-width="2" fill="rgba(26,86,184,0.05)"/>
-            <path d="M16 24l8-12 8 12" stroke="#1a56b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <line x1="24" y1="12" x2="24" y2="34" stroke="#1a56b8" stroke-width="2" stroke-linecap="round"/>
-          </svg>
-        </div>
-        <p class="upload-text">将论文文件拖拽到此处，或<strong>点击选择文件</strong></p>
-        <p class="upload-hint">支持 PDF、DOCX、TXT 格式，最大 50MB</p>
-      </template>
+    <!-- File Upload Mode -->
+    <template v-if="uploadMode === 'file'">
+      <div
+        class="drop-zone"
+        :class="{ dragging: isDragging, 'has-file': selectedFile }"
+        @dragover="onDragOver"
+        @dragleave="onDragLeave"
+        @drop="onDrop"
+        @click="!selectedFile && $refs.fileInput.click()"
+      >
+        <input
+          ref="fileInput"
+          type="file"
+          accept=".pdf,.docx,.txt"
+          class="file-input-hidden"
+          @change="onFileChange"
+        />
 
-      <template v-else>
-        <div class="file-info">
-          <span class="file-name">{{ selectedFile.name }}</span>
-          <span class="file-size">{{ fileSizeFormatted }}</span>
-        </div>
-
-        <div class="user-meta" v-if="showUserMeta && !isUploading && uploadProgress !== 100">
-          <div class="meta-field">
-            <label class="meta-label">
-              地区
-              <span class="meta-tip" title="地区为用户级别，修改后将同步更新您所有已上传论文的地区">
-                &#9432;
-                <span class="meta-tooltip">地区为用户级别，修改后将同步更新您所有已上传论文的地区</span>
-              </span>
-            </label>
-            <input
-              v-model="region"
-              type="text"
-              class="meta-input"
-              placeholder="未知地区"
-              maxlength="64"
-            />
+        <template v-if="!selectedFile">
+          <div class="upload-icon">
+            <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+              <rect x="6" y="24" width="36" height="18" rx="2" stroke="#1a56b8" stroke-width="2" fill="rgba(26,86,184,0.05)"/>
+              <path d="M16 24l8-12 8 12" stroke="#1a56b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <line x1="24" y1="12" x2="24" y2="34" stroke="#1a56b8" stroke-width="2" stroke-linecap="round"/>
+            </svg>
           </div>
-          <div class="meta-field">
-            <label class="meta-label">
-              学校
-              <span class="meta-tip" title="学校为用户级别，修改后将同步更新您所有已上传论文的学校">
-                &#9432;
-                <span class="meta-tooltip">学校为用户级别，修改后将同步更新您所有已上传论文的学校</span>
-              </span>
-            </label>
+          <p class="upload-text">将论文文件拖拽到此处，或<strong>点击选择文件</strong></p>
+          <p class="upload-hint">支持 PDF、DOCX、TXT 格式，最大 50MB</p>
+        </template>
+
+        <template v-else>
+          <div class="file-info">
+            <span class="file-name">{{ selectedFile.name }}</span>
+            <span class="file-size">{{ fileSizeFormatted }}</span>
+          </div>
+
+          <div class="progress-bar" v-if="isUploading">
+            <div class="progress-fill" :style="{ width: uploadProgress + '%' }"></div>
+          </div>
+          <p class="upload-progress-text" v-if="isUploading">
+            上传中... {{ Math.round(uploadProgress) }}%
+          </p>
+
+          <div class="user-meta" v-if="showUserMeta && !isUploading && uploadProgress !== 100">
+            <div class="meta-field">
+              <label class="meta-label">
+                地区
+                <span class="meta-tip" title="地区为用户级别，修改后将同步更新您所有已上传论文的地区">
+                  &#9432;
+                  <span class="meta-tooltip">地区为用户级别，修改后将同步更新您所有已上传论文的地区</span>
+                </span>
+              </label>
+              <input
+                v-model="region"
+                type="text"
+                class="meta-input"
+                placeholder="未知地区"
+                maxlength="64"
+              />
+            </div>
+            <div class="meta-field">
+              <label class="meta-label">
+                学校
+                <span class="meta-tip" title="学校为用户级别，修改后将同步更新您所有已上传论文的学校">
+                  &#9432;
+                  <span class="meta-tooltip">学校为用户级别，修改后将同步更新您所有已上传论文的学校</span>
+                </span>
+              </label>
+              <input
+                v-model="school"
+                type="text"
+                class="meta-input"
+                placeholder="未知学校"
+                maxlength="128"
+              />
+            </div>
+          </div>
+
+          <div class="file-actions" v-if="!isUploading">
+            <button class="btn-upload" @click.stop="startUpload">开始上传</button>
+            <button class="btn-clear" @click.stop="clearFile">重新选择</button>
+          </div>
+
+          <p class="upload-success" v-if="uploadProgress === 100 && !isUploading">
+            &#10004; 上传成功
+          </p>
+        </template>
+      </div>
+    </template>
+
+    <!-- Text Paste Mode -->
+    <template v-if="uploadMode === 'text'">
+      <div class="text-upload-area" :class="{ 'has-file': selectedFile }">
+        <template v-if="!selectedFile">
+          <div class="text-input-group">
+            <label class="text-label">论文标题/文件名（选填）</label>
             <input
-              v-model="school"
+              v-model="textFilename"
               type="text"
-              class="meta-input"
-              placeholder="未知学校"
+              class="text-filename-input"
+              placeholder="例如：毕业论文.txt"
               maxlength="128"
             />
           </div>
-        </div>
+          <div class="text-input-group">
+            <label class="text-label">粘贴论文内容</label>
+            <textarea
+              v-model="pastedText"
+              class="text-area"
+              placeholder="在此粘贴您的论文文字内容..."
+              rows="12"
+            ></textarea>
+            <span class="text-count">已输入 {{ textCharCount }} 字</span>
+          </div>
+          <div class="user-meta" v-if="showUserMeta">
+            <div class="meta-field">
+              <label class="meta-label">
+                地区
+                <span class="meta-tip" title="地区为用户级别，修改后将同步更新您所有已上传论文的地区">
+                  &#9432;
+                  <span class="meta-tooltip">地区为用户级别，修改后将同步更新您所有已上传论文的地区</span>
+                </span>
+              </label>
+              <input
+                v-model="region"
+                type="text"
+                class="meta-input"
+                placeholder="未知地区"
+                maxlength="64"
+              />
+            </div>
+            <div class="meta-field">
+              <label class="meta-label">
+                学校
+                <span class="meta-tip" title="学校为用户级别，修改后将同步更新您所有已上传论文的学校">
+                  &#9432;
+                  <span class="meta-tooltip">学校为用户级别，修改后将同步更新您所有已上传论文的学校</span>
+                </span>
+              </label>
+              <input
+                v-model="school"
+                type="text"
+                class="meta-input"
+                placeholder="未知学校"
+                maxlength="128"
+              />
+            </div>
+          </div>
+          <button
+            class="btn-upload"
+            :disabled="!pastedText.trim()"
+            @click="prepareTextFile"
+          >
+            确认内容，准备上传
+          </button>
+        </template>
 
-        <div class="progress-bar" v-if="isUploading">
-          <div class="progress-fill" :style="{ width: uploadProgress + '%' }"></div>
-        </div>
-        <p class="upload-progress-text" v-if="isUploading">
-          上传中... {{ Math.round(uploadProgress) }}%
-        </p>
+        <template v-else>
+          <div class="file-info">
+            <span class="file-name">{{ selectedFile.name }}</span>
+            <span class="file-size">{{ fileSizeFormatted }}</span>
+          </div>
 
-        <div class="file-actions" v-if="!isUploading">
-          <button class="btn-upload" @click.stop="startUpload">开始上传</button>
-          <button class="btn-clear" @click.stop="clearFile">重新选择</button>
-        </div>
+          <div class="progress-bar" v-if="isUploading">
+            <div class="progress-fill" :style="{ width: uploadProgress + '%' }"></div>
+          </div>
+          <p class="upload-progress-text" v-if="isUploading">
+            上传中... {{ Math.round(uploadProgress) }}%
+          </p>
 
-        <p class="upload-success" v-if="uploadProgress === 100 && !isUploading">
-          &#10004; 上传成功
-        </p>
-      </template>
-    </div>
+          <div class="user-meta" v-if="showUserMeta && !isUploading && uploadProgress !== 100">
+            <div class="meta-field">
+              <label class="meta-label">
+                地区
+                <span class="meta-tip" title="地区为用户级别，修改后将同步更新您所有已上传论文的地区">
+                  &#9432;
+                  <span class="meta-tooltip">地区为用户级别，修改后将同步更新您所有已上传论文的地区</span>
+                </span>
+              </label>
+              <input
+                v-model="region"
+                type="text"
+                class="meta-input"
+                placeholder="未知地区"
+                maxlength="64"
+              />
+            </div>
+            <div class="meta-field">
+              <label class="meta-label">
+                学校
+                <span class="meta-tip" title="学校为用户级别，修改后将同步更新您所有已上传论文的学校">
+                  &#9432;
+                  <span class="meta-tooltip">学校为用户级别，修改后将同步更新您所有已上传论文的学校</span>
+                </span>
+              </label>
+              <input
+                v-model="school"
+                type="text"
+                class="meta-input"
+                placeholder="未知学校"
+                maxlength="128"
+              />
+            </div>
+          </div>
+
+          <div class="file-actions" v-if="!isUploading">
+            <button class="btn-upload" @click.stop="startUpload">开始上传</button>
+            <button class="btn-clear" @click.stop="clearFile">重新输入</button>
+          </div>
+
+          <p class="upload-success" v-if="uploadProgress === 100 && !isUploading">
+            &#10004; 上传成功
+          </p>
+        </template>
+      </div>
+    </template>
 
     <p class="error-msg" v-if="errorMessage">{{ errorMessage }}</p>
   </div>
@@ -207,9 +386,48 @@ function clearFile() {
   width: 100%;
 }
 
+/* Mode Tabs */
+.mode-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: -1px;
+  position: relative;
+  z-index: 1;
+}
+
+.mode-tab {
+  flex: 1;
+  padding: 10px 0;
+  border: 1px solid #ddd;
+  border-bottom: none;
+  background: #f5f5f5;
+  color: #888;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-radius: 8px 8px 0 0;
+}
+
+.mode-tab:first-child {
+  margin-right: -1px;
+}
+
+.mode-tab.active {
+  background: #fff;
+  color: var(--primary-blue);
+  border-color: var(--primary-blue);
+  border-bottom: 2px solid #fff;
+}
+
+.mode-tab:hover:not(.active) {
+  color: #555;
+  background: #eee;
+}
+
 .drop-zone {
   border: 2px dashed var(--primary-blue);
-  border-radius: 8px;
+  border-radius: 0 0 8px 8px;
   padding: 40px 20px;
   text-align: center;
   cursor: pointer;
@@ -237,6 +455,7 @@ function clearFile() {
   border-style: solid;
   background: rgba(26, 86, 184, 0.05);
   gap: 12px;
+  border-radius: 0 0 8px 8px;
 }
 
 .file-input-hidden {
@@ -262,6 +481,73 @@ function clearFile() {
   font-size: 12px;
   color: var(--text-light);
   margin: 8px 0 0;
+}
+
+/* Text Upload Mode */
+.text-upload-area {
+  border: 2px solid var(--primary-blue);
+  border-radius: 0 0 8px 8px;
+  padding: 24px;
+  background: rgba(26, 86, 184, 0.02);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.text-upload-area.has-file {
+  border-style: solid;
+  background: rgba(26, 86, 184, 0.05);
+}
+
+.text-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.text-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dark-blue);
+}
+
+.text-filename-input {
+  padding: 8px 12px;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.text-filename-input:focus {
+  border-color: var(--primary-blue);
+}
+
+.text-area {
+  padding: 12px;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  font-size: 14px;
+  line-height: 1.8;
+  resize: vertical;
+  outline: none;
+  font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+  transition: border-color 0.2s;
+}
+
+.text-area:focus {
+  border-color: var(--primary-blue);
+}
+
+.text-area::placeholder {
+  color: #bbb;
+}
+
+.text-count {
+  font-size: 12px;
+  color: var(--text-light);
+  text-align: right;
 }
 
 .user-meta {
@@ -415,8 +701,13 @@ function clearFile() {
   transition: background 0.2s;
 }
 
-.btn-upload:hover {
+.btn-upload:hover:not(:disabled) {
   background: var(--dark-blue);
+}
+
+.btn-upload:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .btn-clear {
@@ -446,5 +737,12 @@ function clearFile() {
   font-size: 13px;
   margin: 8px 0 0;
   text-align: center;
+}
+
+@media (max-width: 768px) {
+  .user-meta {
+    flex-direction: column;
+    gap: 10px;
+  }
 }
 </style>
