@@ -28,8 +28,8 @@ deepseek:
   api-url: https://api.deepseek.com/v1/chat/completions
 
 humangc:
-  server-cost-daily: 3       # 每天服务器费用（元）
-  server-initial-balance: 100 # 初始余额（元）
+  server-cost-daily: 4.869   # 每天服务器费用（元）
+  server-initial-balance: 300 # 初始余额（元）
   features:
     - name: "错别字/typo"
       weight: 0.6

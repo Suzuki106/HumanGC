@@ -19,6 +19,8 @@ export const useAppStore = defineStore('app', () => {
     hoursRemaining: 0,
     progressPercent: 0,
     totalCost: 0,
+    dailyCost: 0,
+    totalFunds: 0,
     donatedAmount: 0
   })
 

@@ -12,10 +12,10 @@ const donationHistory = ref([])
 const totalDonated = ref(0)
 
 const presetAmounts = [
-  { amount: 5, days: '~1.7', label: '¥5', desc: '撑 1.7 天' },
-  { amount: 20, days: '~6.7', label: '¥20', desc: '撑 6.7 天' },
-  { amount: 50, days: '~16.7', label: '¥50', desc: '撑 16.7 天' },
-  { amount: 100, days: '~33.3', label: '¥100', desc: '撑 33 天' }
+  { amount: 5, days:  '~1.0', label: '¥5', desc: '撑 1.0 天' },
+  { amount: 20, days:  '~4.1', label: '¥20', desc: '撑 4.1 天' },
+  { amount: 50, days:  '~10.3', label: '¥50', desc: '撑 10.3 天' },
+  { amount: 100, days:  '~20.5', label: '¥100', desc: '撑 20.5 天' }
 ]
 
 const customAmount = ref('')
@@ -47,7 +47,7 @@ async function doDonate(amount) {
 }
 
 function generateThankYou(amount) {
-  const dailyCost = 3
+  const dailyCost = 4.87
   const pct = Math.round(amount / dailyCost)
   const messages = [
     `感谢您的 ¥${amount} 打赏！您贡献了约 ${pct} 天的服务器运行时间，反学术事业因您而延续！`,
@@ -67,7 +67,7 @@ onMounted(() => {
     <div class="container">
       <h1 class="page-title">打赏续命</h1>
       <p class="page-desc">
-        服务器运营不易，每天云服务费用 ¥3，当前余额 ¥100。<br/>
+        服务器运营不易，每天云服务费用 ¥4.87，当前余额 ¥300。<br/>
         您的慷慨解囊，将直接延长本站服务器的寿命。
       </p>
 
@@ -80,7 +80,7 @@ onMounted(() => {
           </div>
           <div class="shutdown-details">
             <div class="detail-item">
-              <span class="detail-value">¥{{ (appStore.serverStatus.donatedAmount || 0) + 100 }}</span>
+              <span class="detail-value">¥{{ appStore.serverStatus.totalFunds || 300 }}</span>
               <span class="detail-label">当前余额</span>
             </div>
             <div class="detail-item">

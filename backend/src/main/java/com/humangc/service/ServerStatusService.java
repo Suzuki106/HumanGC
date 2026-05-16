@@ -67,6 +67,8 @@ public class ServerStatusService {
                 hoursRemaining,
                 progressPercent,
                 targetCost,
+                dailyCost,
+                totalFunds,
                 donatedAmount
         );
     }

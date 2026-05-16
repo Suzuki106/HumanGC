@@ -14,6 +14,8 @@ public class ServerStatusResponse {
     private Long daysRemaining;
     private Long hoursRemaining;
     private BigDecimal progressPercent;
-    private BigDecimal totalCost;
-    private BigDecimal donatedAmount;
+    private BigDecimal totalCost;      // 30-day target
+    private BigDecimal dailyCost;      // cost per day
+    private BigDecimal totalFunds;     // initial balance + donations
+    private BigDecimal donatedAmount;  // total donations received
 }
