@@ -5,11 +5,12 @@ const apiClient = axios.create({
   timeout: 30000
 })
 
-export function upload(file, region, school, anonymousId) {
+export function upload(file, region, school, anonymousId, isPublic = true) {
   const formData = new FormData()
   formData.append('file', file)
   formData.append('region', region || '未知地区')
   formData.append('school', school || '未知学校')
+  formData.append('isPublic', isPublic)
   return apiClient.post('/upload', formData, {
     timeout: 120000,
     headers: {
@@ -40,8 +41,12 @@ export function getLeaderboard(type = 'individual', page = 1, size = 20) {
   })
 }
 
-export function getPaper(id) {
-  return apiClient.get(`/paper/${id}`)
+export function getPaper(id, anonymousId) {
+  return apiClient.get(`/paper/${id}`, {
+    headers: {
+      'X-Anonymous-Id': anonymousId || ''
+    }
+  })
 }
 
 export function getUserPapers(anonymousId) {

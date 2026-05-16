@@ -19,6 +19,10 @@ const errorMessage = ref('')
 const region = ref('')
 const school = ref('')
 
+// Privacy dialog
+const showPrivacyDialog = ref(false)
+const isPublic = ref(true)
+
 // Text paste mode
 const pastedText = ref('')
 const textFilename = ref('')
@@ -93,7 +97,13 @@ function prepareTextFile() {
   errorMessage.value = ''
 }
 
-async function startUpload() {
+function startUpload() {
+  if (!selectedFile.value) return
+  showPrivacyDialog.value = true
+}
+
+async function confirmUpload() {
+  showPrivacyDialog.value = false
   if (!selectedFile.value) return
   isUploading.value = true
   uploadProgress.value = 0
@@ -107,7 +117,7 @@ async function startUpload() {
       }
     }, 200)
 
-    const res = await upload(selectedFile.value, region.value, school.value, appStore.anonymousId)
+    const res = await upload(selectedFile.value, region.value, school.value, appStore.anonymousId, isPublic.value)
     clearInterval(progressInterval)
     uploadProgress.value = 100
     const paperId = res.data?.paperId || res.data?.id
@@ -126,12 +136,18 @@ async function startUpload() {
   }
 }
 
+function cancelPrivacyDialog() {
+  showPrivacyDialog.value = false
+}
+
 function clearFile() {
   selectedFile.value = null
   uploadProgress.value = 0
   errorMessage.value = ''
   pastedText.value = ''
   textFilename.value = ''
+  showPrivacyDialog.value = false
+  isPublic.value = true
 }
 
 function switchMode(mode) {
@@ -376,6 +392,24 @@ function switchMode(mode) {
         </template>
       </div>
     </template>
+
+    <!-- Privacy Dialog -->
+    <div class="privacy-overlay" v-if="showPrivacyDialog" @click.self="cancelPrivacyDialog">
+      <div class="privacy-dialog">
+        <h3 class="privacy-title">🔒 论文可见性设置</h3>
+        <p class="privacy-desc">是否同意其他用户在排行榜及论文详情中鉴赏您的佳作？</p>
+        <p class="privacy-note">设为公开后，其他用户可以查看您的论文原文。设为私密后，他人将无法查看原文内容，只能看到含人率等统计数据。（您自己始终可以查看自己的论文）</p>
+        <div class="privacy-actions">
+          <button class="btn-privacy-public" @click="isPublic = true; confirmUpload()">
+            👍 同意公开，让大家鉴赏
+          </button>
+          <button class="btn-privacy-private" @click="isPublic = false; confirmUpload()">
+            🙈 设为私密，拒绝围观
+          </button>
+        </div>
+        <button class="privacy-cancel" @click="cancelPrivacyDialog">取消</button>
+      </div>
+    </div>
 
     <p class="error-msg" v-if="errorMessage">{{ errorMessage }}</p>
   </div>
@@ -739,10 +773,111 @@ function switchMode(mode) {
   text-align: center;
 }
 
+/* Privacy Dialog */
+.privacy-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.privacy-dialog {
+  background: #fff;
+  border-radius: 12px;
+  padding: 32px 28px 24px;
+  max-width: 440px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+}
+
+.privacy-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--dark-blue);
+  margin: 0 0 12px;
+}
+
+.privacy-desc {
+  font-size: 15px;
+  color: var(--text-dark);
+  margin: 0 0 12px;
+  line-height: 1.6;
+  font-weight: 600;
+}
+
+.privacy-note {
+  font-size: 12px;
+  color: var(--text-light);
+  margin: 0 0 24px;
+  line-height: 1.7;
+}
+
+.privacy-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.btn-privacy-public {
+  background: var(--primary-blue);
+  color: #fff;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-privacy-public:hover {
+  background: var(--dark-blue);
+}
+
+.btn-privacy-private {
+  background: #fff;
+  color: var(--text-dark);
+  border: 2px solid #ddd;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-privacy-private:hover {
+  border-color: #999;
+  background: #f5f5f5;
+}
+
+.privacy-cancel {
+  background: none;
+  border: none;
+  color: var(--text-light);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 12px;
+}
+
+.privacy-cancel:hover {
+  color: var(--text-dark);
+  text-decoration: underline;
+}
+
 @media (max-width: 768px) {
   .user-meta {
     flex-direction: column;
     gap: 10px;
+  }
+
+  .privacy-dialog {
+    padding: 24px 20px 20px;
   }
 }
 </style>

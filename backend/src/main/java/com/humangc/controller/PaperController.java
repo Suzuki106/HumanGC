@@ -26,8 +26,11 @@ public class PaperController {
     private UserMapper userMapper;
 
     @GetMapping("/paper/{id}")
-    public Map<String, Object> getPaper(@PathVariable Long id) {
-        log.info("Get paper detail for id={}", id);
+    public Map<String, Object> getPaper(
+            @PathVariable Long id,
+            @RequestHeader(value = "X-Anonymous-Id", required = false) String viewerAnonymousId) {
+
+        log.info("Get paper detail for id={}, viewer={}", id, viewerAnonymousId);
 
         Paper paper = paperMapper.selectById(id);
         if (paper == null) {
@@ -35,10 +38,18 @@ public class PaperController {
         }
 
         User user = userMapper.selectById(paper.getUserId());
+        boolean isOwner = viewerAnonymousId != null && user != null
+                && viewerAnonymousId.equals(user.getAnonymousId());
 
         Map<String, Object> result = new HashMap<>();
         result.put("paper", paper);
         result.put("user", user);
+        result.put("isOwner", isOwner);
+
+        // If paper is private and viewer is not the owner, mask original text
+        if (Boolean.FALSE.equals(paper.getIsPublic()) && !isOwner) {
+            result.put("originalTextMasked", true);
+        }
 
         return result;
     }
@@ -47,7 +58,6 @@ public class PaperController {
     public List<Paper> getUserPapers(@PathVariable String anonymousId) {
         log.info("Get papers for user anonymousId={}", anonymousId);
 
-        // Find user
         LambdaQueryWrapper<User> userWrapper = new LambdaQueryWrapper<>();
         userWrapper.eq(User::getAnonymousId, anonymousId);
         User user = userMapper.selectOne(userWrapper);
@@ -56,7 +66,6 @@ public class PaperController {
             return List.of();
         }
 
-        // Get papers
         LambdaQueryWrapper<Paper> paperWrapper = new LambdaQueryWrapper<>();
         paperWrapper.eq(Paper::getUserId, user.getId())
                     .orderByDesc(Paper::getCreatedAt);

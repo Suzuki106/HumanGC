@@ -31,5 +31,7 @@ public class Paper {
 
     private String originalFilename;
 
+    private Boolean isPublic;
+
     private LocalDateTime createdAt;
 }

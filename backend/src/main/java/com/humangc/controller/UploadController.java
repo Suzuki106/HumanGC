@@ -41,7 +41,8 @@ public class UploadController {
             @RequestParam("file") MultipartFile file,
             @RequestHeader(value = "X-Anonymous-Id", required = false) String anonymousId,
             @RequestParam(value = "region", required = false) String region,
-            @RequestParam(value = "school", required = false) String school) {
+            @RequestParam(value = "school", required = false) String school,
+            @RequestParam(value = "isPublic", defaultValue = "true") Boolean isPublic) {
 
         log.info("Upload request: filename={}, size={}, anonymousId={}",
                 file.getOriginalFilename(), file.getSize(), anonymousId);
@@ -92,6 +93,7 @@ public class UploadController {
         paper.setOriginalText(text);
         paper.setFileType(fileType);
         paper.setOriginalFilename(originalFilename);
+        paper.setIsPublic(isPublic);
         paper.setCreatedAt(LocalDateTime.now());
         paperMapper.insert(paper);
 

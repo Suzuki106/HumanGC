@@ -1,29 +1,36 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useAppStore } from '../stores/app'
 import { getPaper } from '../api'
 import RateGauge from '../components/RateGauge.vue'
 
 const route = useRoute()
 const router = useRouter()
+const appStore = useAppStore()
 
 const paperId = route.params.id
 const paper = ref(null)
 const isLoading = ref(true)
 const activeTab = ref('original')
+const originalTextMasked = ref(false)
+const isOwner = ref(false)
 
 const tabs = [
   { key: 'original', label: '原文' },
   { key: 'shitsified', label: '屎山版' }
 ]
 
+const showPrivateNotice = computed(() => originalTextMasked.value && activeTab.value === 'original')
+
 onMounted(async () => {
   try {
-    const res = await getPaper(paperId)
-    // Backend returns {paper, features, user} - flatten to match component expectations
+    const res = await getPaper(paperId, appStore.anonymousId)
     const data = res.data
     if (data.paper) {
       paper.value = { ...data.paper, features: data.features, user: data.user }
+      originalTextMasked.value = data.originalTextMasked || false
+      isOwner.value = data.isOwner || false
     } else {
       paper.value = data
     }
@@ -127,8 +134,20 @@ onMounted(async () => {
             </button>
           </div>
           <div class="text-content">
-            <pre v-if="activeTab === 'original'" class="paper-text">{{ paper.originalText }}</pre>
+            <!-- Private notice -->
+            <div v-if="showPrivateNotice" class="private-notice">
+              <div class="private-icon">🔐</div>
+              <h4 class="private-heading">该论文已被作者设为私密</h4>
+              <p class="private-sub">作者开启了「拒绝围观」模式，原文内容不予展示。</p>
+              <p class="private-joke">—— 别看了，再看也变不出第二篇。</p>
+            </div>
+            <pre v-if="activeTab === 'original' && !showPrivateNotice" class="paper-text">{{ paper.originalText }}</pre>
             <pre v-if="activeTab === 'shitsified'" class="paper-text shitsified">{{ paper.shitsifiedText }}</pre>
+          </div>
+
+          <!-- Private badge -->
+          <div class="private-badge" v-if="!isOwner && originalTextMasked">
+            🚫 作者拒绝被围观，原文已隐藏
           </div>
         </div>
 
@@ -347,6 +366,48 @@ onMounted(async () => {
 
 .btn-orange:hover {
   background: #e55a2b;
+}
+
+/* Private Notice */
+.private-notice {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.private-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.private-heading {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--dark-blue);
+  margin: 0 0 8px;
+}
+
+.private-sub {
+  font-size: 14px;
+  color: var(--text-light);
+  margin: 0 0 8px;
+}
+
+.private-joke {
+  font-size: 13px;
+  color: #999;
+  margin: 0;
+  font-style: italic;
+}
+
+.private-badge {
+  text-align: center;
+  padding: 10px;
+  background: #fff3e0;
+  border: 1px solid #ffb74d;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #e65100;
+  font-weight: 600;
 }
 
 @media (max-width: 768px) {

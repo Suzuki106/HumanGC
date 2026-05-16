@@ -72,6 +72,7 @@ CREATE TABLE `papers` (
   `review_text` text,
   `file_type` varchar(16) DEFAULT NULL,
   `original_filename` varchar(256) DEFAULT NULL,
+  `is_public` tinyint(1) NOT NULL DEFAULT '1',
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `user_id` (`user_id`),
