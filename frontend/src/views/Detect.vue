@@ -114,6 +114,10 @@ onMounted(() => {
           </div>
           <DimensionRadar v-if="Object.keys(dimensions).length" :dimensions="dimensions" />
           <p class="summary-text">{{ summaryText }}</p>
+          <div class="disclaimer">
+            <span class="disclaimer-icon">&#9888;&#65039;</span>
+            本检测结果由 AI 模型生成，仅供娱乐参考，不构成任何学术评价或鉴定依据。
+          </div>
         </div>
 
         <!-- AI Review -->
@@ -287,7 +291,25 @@ onMounted(() => {
 .summary-text {
   font-size: 16px;
   font-weight: 600;
-  margin: 16px 0 0;
+  margin: 16px 0 12px;
+}
+
+.disclaimer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  background: #fef9e7;
+  border: 1px solid #f9e79f;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #7d6608;
+  line-height: 1.6;
+}
+
+.disclaimer-icon {
+  font-size: 14px;
+  flex-shrink: 0;
 }
 
 /* Result Actions */

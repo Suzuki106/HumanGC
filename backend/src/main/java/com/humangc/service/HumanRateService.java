@@ -23,7 +23,7 @@ import java.util.*;
  * 混合方案：
  *   1. HumanRateCalculator   — 7 维度统计特征给定基础分（基于 AIGC 检测算法逆向）
  *   2. DeepSeek API          — AI 定性评估 + 生成中文总结
- *   3. 最终含人率 = 统计分 × 0.5 + AI 分 × 0.5
+ *   3. 最终含人率 = 统计分 × 0.4 + AI 分 × 0.6
  *
  * 统计部分参考：
  *   - Fast-DetectGPT (ICLR 2024): 困惑度 / 条件概率曲率
@@ -101,11 +101,11 @@ public class HumanRateService {
             summary = generateFallbackSummary(statRate);
         }
 
-        // ── 3. 混合：统计 50% + AI 50% ──
+        // ── 3. 混合：统计 40% + AI 60% ──
         BigDecimal finalRate;
         if (aiAvailable) {
-            finalRate = statRate.multiply(BigDecimal.valueOf(0.5))
-                    .add(aiRate.multiply(BigDecimal.valueOf(0.5)))
+            finalRate = statRate.multiply(BigDecimal.valueOf(0.4))
+                    .add(aiRate.multiply(BigDecimal.valueOf(0.6)))
                     .setScale(1, RoundingMode.HALF_UP);
         } else {
             finalRate = statRate;
