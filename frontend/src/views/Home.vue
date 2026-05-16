@@ -98,7 +98,7 @@ onMounted(() => {
             <span class="stat-label">已检测论文</span>
           </div>
           <div class="stat-item">
-            <span class="stat-num">98.5%</span>
+            <span class="stat-num">985‰</span>
             <span class="stat-label">检测准确率</span>
           </div>
           <div class="stat-item">
