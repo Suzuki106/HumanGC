@@ -119,7 +119,7 @@ public class HumanRateService {
 
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put("model", "deepseek-chat");
-        requestBody.put("temperature", 0.8);
+        requestBody.put("temperature", 0.1);
         requestBody.put("max_tokens", 400);
 
         List<Map<String, String>> messages = new ArrayList<>();

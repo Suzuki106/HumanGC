@@ -49,9 +49,8 @@ public class HumanRateCalculator {
         List<String> words = tokenize(cleaned);
 
         if (sentences.isEmpty() || words.size() < 10) {
-            // 文本太短，AI 无法可靠估计，给一个中等随机值
-            double fallback = 35 + Math.random() * 20;
-            return BigDecimal.valueOf(Math.round(fallback * 10) / 10.0);
+            // 文本太短，无法可靠估计，返回固定中等值
+            return BigDecimal.valueOf(50.0);
         }
 
         double score = 0.0;
