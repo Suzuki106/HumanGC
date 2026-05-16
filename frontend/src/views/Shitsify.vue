@@ -149,10 +149,10 @@ async function doShitsify() {
 }
 
 .ready-text {
-  font-size: 14px;
+  font-size: 18px;
   color: #e65100;
-  margin: 0 0 16px;
-  font-weight: 500;
+  margin: 0 0 20px;
+  font-weight: 700;
 }
 
 .btn-generate {
