@@ -1,5 +1,6 @@
 package com.humangc.service;
 
+import com.huaban.analysis.jieba.JiebaSegmenter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -12,7 +13,7 @@ import java.util.stream.Collectors;
 /**
  * HumanGC 含人率统计算法。
  *
- * 基于 AIGC 检测领域主流方法（困惑度、突发性、词汇多样性等）的逆向设计：
+ * 使用 Jieba 中文分词（非逐字拆分），基于 AIGC 检测方法的逆向设计：
  *   - AIGC 检测：低困惑度 + 低突发性 → AI 写的
  *   - HumanGC：  高困惑度 + 高突发性 → 人写的
  *
@@ -25,13 +26,15 @@ import java.util.stream.Collectors;
 @Component
 public class HumanRateCalculator {
 
-    // ── 子维度权重（总和 1.0） ──
-    private static final double W_BURSTINESS     = 0.22;  // 句子突发性
-    private static final double W_PERPLEXITY     = 0.20;  // 困惑度代理
-    private static final double W_LEXICAL        = 0.18;  // 词汇多样性
-    private static final double W_READABILITY    = 0.14;  // 可读性反向
+    private static final JiebaSegmenter SEGMENTER = new JiebaSegmenter();
+
+    // ── 子维度权重（总和 1.0，针对中文词级分词校准） ──
+    private static final double W_BURSTINESS     = 0.24;  // 句子突发性
+    private static final double W_PERPLEXITY     = 0.14;  // 困惑度代理
+    private static final double W_LEXICAL        = 0.22;  // 词汇多样性 (TTR)
+    private static final double W_READABILITY    = 0.12;  // 平均句长
     private static final double W_PUNCTUATION    = 0.10;  // 标点多样性
-    private static final double W_SENTENCE_VAR   = 0.08;  // 句长波动
+    private static final double W_SENTENCE_VAR   = 0.10;  // 句长波动
     private static final double W_HAPAX          = 0.08;  // 罕用词比例
 
     /**
@@ -131,7 +134,7 @@ public class HumanRateCalculator {
             zipfDev += Math.abs(actual - expected) / expected;
         }
         zipfDev /= count;
-        double zipfScore = clamp(0, 100, zipfDev * 60);
+        double zipfScore = clamp(0, 100, zipfDev * 50);
 
         return (charScore + zipfScore) / 2.0;
     }
@@ -147,28 +150,23 @@ public class HumanRateCalculator {
         double ttr = (double) unique.size() / words.size();
 
         // TTR 通常在 0.15~0.6 之间，映射到 0~100
-        return clamp(0, 100, ttr * 180);
+        return clamp(0, 100, ttr * 150);
     }
 
     // ═══════════════════════════════════════════════
-    // 4. 可读性反向 (Readability Inverse)
+    // 4. 平均句长 (Chinese complexity proxy)
     // ═══════════════════════════════════════════════
-    // AI 文本通常可读性高（Flesch 得分高），人类学术文本可读性低
-    // 使用 Automated Readability Index (ARI) 的变体
+    // 平均句长（字/句）是中文文本复杂度的合理代理指标
+    // 长句多分句 → AI 学术腔；短句碎片化 → 人类口语化
+    // 映射：15 字/句 → 18分, 80 字/句 → 96分
     private double calcReadabilityInverse(String text, List<String> sentences, List<String> words) {
         double chars = text.replaceAll("\\s", "").length();
-        double wordCount = words.size();
         double sentCount = sentences.size();
 
-        if (wordCount == 0 || sentCount == 0) return 50;
+        if (chars == 0 || sentCount == 0) return 50;
 
-        // ARI = 4.71 * (chars/words) + 0.5 * (words/sentences) - 21.43
-        double ari = 4.71 * (chars / wordCount) + 0.5 * (wordCount / sentCount) - 21.43;
-
-        // ARI 通常在 5~20
-        // 可读性越差 → 越像人类写的学术垃圾
-        // 映射：ARI 5 → 10分, ARI 18 → 90分
-        double score = (ari - 3) * 6.5;
+        double avgSentLen = chars / sentCount;
+        double score = avgSentLen * 1.2;
         return clamp(0, 100, score);
     }
 
@@ -246,13 +244,13 @@ public class HumanRateCalculator {
     }
 
     private List<String> tokenize(String text) {
-        // 中英文混合分词
-        List<String> tokens = new ArrayList<>();
-        // 中文：按字分割，但保留连续的英文字母/数字
-        Matcher m = Pattern.compile("[\\u4e00-\\u9fff]|[a-zA-Z]+|\\d+|[^\\s\\u4e00-\\u9fff]").matcher(text);
-        while (m.find()) {
-            String token = m.group().trim();
-            if (!token.isEmpty()) tokens.add(token);
+        List<String> rawTokens = SEGMENTER.sentenceProcess(text);
+        List<String> tokens = new ArrayList<>(rawTokens.size());
+        for (String token : rawTokens) {
+            String trimmed = token.trim();
+            if (!trimmed.isEmpty()) {
+                tokens.add(trimmed);
+            }
         }
         return tokens;
     }

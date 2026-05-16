@@ -69,6 +69,13 @@
             <version>5.2.5</version>
         </dependency>
 
+        <!-- Jieba Chinese word segmentation -->
+        <dependency>
+            <groupId>com.huaban</groupId>
+            <artifactId>jieba-analysis</artifactId>
+            <version>1.0.2</version>
+        </dependency>
+
         <!-- Spring Boot Test -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
